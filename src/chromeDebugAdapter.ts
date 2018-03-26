@@ -17,6 +17,8 @@ import * as errors from './errors';
 
 import * as nls from 'vscode-nls';
 import { FinishedStartingUpEventArguments } from 'vscode-chrome-debug-core/lib/src/executionTimingsReporter';
+import { fillErrorDetails } from 'vscode-chrome-debug-core/lib/src/utils';
+import { IExecutionResultTelemetryProperties } from 'vscode-chrome-debug-core/lib/src/telemetry';
 let localize = nls.loadMessageBundle();
 
 // Keep in sync with sourceMapPathOverrides package.json default
@@ -189,9 +191,9 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
     protected doAttach(port: number, targetUrl?: string, address?: string, timeout?: number, websocketUrl?: string, extraCRDPChannelPort?: number): Promise<void> {
         return super.doAttach(port, targetUrl, address, timeout, websocketUrl, extraCRDPChannelPort).then(() => {
             // Don't return this promise, a failure shouldn't fail attach
-            this.globalEvaluate({ expression: 'navigator.userAgent', silent: true })
-                .then(
-                    evalResponse => logger.log('Target userAgent: ' + evalResponse.result.value),
+            const userAgentPromise = this.globalEvaluate({ expression: 'navigator.userAgent', silent: true }).then(evalResponse => evalResponse.result.value);
+            userAgentPromise.then(
+                    userAgent => logger.log('Target userAgent: ' + userAgent),
                     err => logger.log('Getting userAgent failed: ' + err.message))
                 .then(() => {
                     const cacheDisabled = (<ICommonRequestArgs>this._launchAttachArgs).disableNetworkCache || false;
@@ -214,6 +216,13 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
                     properties['Versions.Target.Product'] = response.product;
                 }
                 return properties
+            }, ignoredRejection => {
+                return userAgentPromise.then(userAgent => ({ 'Versions.Target.UserAgent': userAgent }),
+                    rejection => {
+                        const properties = { 'Versions.Target.NoUserAgentReason': 'Error while retriving target user agent' } as IExecutionResultTelemetryProperties;
+                        fillErrorDetails(properties, rejection);
+                        return properties
+                    });
             });
 
             // Send the versions information as it's own event so we can easily backfill other events in the user session if needed
