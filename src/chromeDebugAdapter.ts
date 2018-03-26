@@ -17,7 +17,6 @@ import * as errors from './errors';
 
 import * as nls from 'vscode-nls';
 import { FinishedStartingUpEventArguments } from 'vscode-chrome-debug-core/lib/src/executionTimingsReporter';
-import { fillErrorDetails } from 'vscode-chrome-debug-core/lib/src/utils';
 import { IExecutionResultTelemetryProperties } from 'vscode-chrome-debug-core/lib/src/telemetry';
 let localize = nls.loadMessageBundle();
 
@@ -188,49 +187,52 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
         super.commonArgs(args);
     }
 
-    protected doAttach(port: number, targetUrl?: string, address?: string, timeout?: number, websocketUrl?: string, extraCRDPChannelPort?: number): Promise<void> {
-        return super.doAttach(port, targetUrl, address, timeout, websocketUrl, extraCRDPChannelPort).then(() => {
-            // Don't return this promise, a failure shouldn't fail attach
-            const userAgentPromise = this.globalEvaluate({ expression: 'navigator.userAgent', silent: true }).then(evalResponse => evalResponse.result.value);
-            userAgentPromise.then(
-                    userAgent => logger.log('Target userAgent: ' + userAgent),
-                    err => logger.log('Getting userAgent failed: ' + err.message))
-                .then(() => {
-                    const cacheDisabled = (<ICommonRequestArgs>this._launchAttachArgs).disableNetworkCache || false;
-                    this.chrome.Network.setCacheDisabled({ cacheDisabled });
-                });
+    protected async doAttach(port: number, targetUrl?: string, address?: string, timeout?: number, websocketUrl?: string, extraCRDPChannelPort?: number): Promise<void> {
+        await super.doAttach(port, targetUrl, address, timeout, websocketUrl, extraCRDPChannelPort);
 
-            const versionInformationPromise = this.chrome.Browser.getVersion().then(response => {
-                const properties = {
-                    'Versions.Target.CRDPVersion': response.protocolVersion,
-                    'Versions.Target.Revision': response.revision,
-                    'Versions.Target.UserAgent': response.userAgent,
-                    'Versions.Target.V8': response.jsVersion
-                };
+        const cacheDisabled = (<ICommonRequestArgs>this._launchAttachArgs).disableNetworkCache || false;
+        this.chrome.Network.setCacheDisabled({ cacheDisabled });
 
-                const parts = (response.product || '').split('/');
-                if (parts.length === 2) { // Currently response.product looks like "Chrome/65.0.3325.162" so we split the project and the actual version number
-                    properties['Versions.Target.Project'] =  parts[0];
-                    properties['Versions.Target.Version'] =  parts[1];
-                } else { // If for any reason that changes, we submit the entire product as-is
-                    properties['Versions.Target.Product'] = response.product;
-                }
-                return properties
-            }, ignoredRejection => {
-                return userAgentPromise.then(userAgent => ({ 'Versions.Target.UserAgent': userAgent }),
-                    rejection => {
-                        const properties = { 'Versions.Target.NoUserAgentReason': 'Error while retriving target user agent' } as IExecutionResultTelemetryProperties;
-                        fillErrorDetails(properties, rejection);
-                        return properties
-                    });
-            });
+        // Don't return/await this promise, a failure shouldn't fail attach
+        const versionInformationPromise = this.chrome.Browser.getVersion().then(response => {
+            const properties = {
+                'Versions.Target.CRDPVersion': response.protocolVersion,
+                'Versions.Target.Revision': response.revision,
+                'Versions.Target.UserAgent': response.userAgent,
+                'Versions.Target.V8': response.jsVersion
+            };
+
+            const parts = (response.product || '').split('/');
+            if (parts.length === 2) { // Currently response.product looks like "Chrome/65.0.3325.162" so we split the project and the actual version number
+                properties['Versions.Target.Project'] =  parts[0];
+                properties['Versions.Target.Version'] =  parts[1];
+            } else { // If for any reason that changes, we submit the entire product as-is
+                properties['Versions.Target.Product'] = response.product;
+            }
+
+            return properties;
+        }, async ignoredRejection => {
+            try {
+                const evalResponse = await this.globalEvaluate({ expression: 'navigator.userAgent', silent: true });
+                const userAgent = evalResponse.result.value;
+                return { 'Versions.Target.UserAgent': userAgent };
+            } catch (rejection) {
+                logger.log('Getting userAgent failed: ' + rejection.message);
+                const properties = { 'Versions.Target.NoUserAgentReason': 'Error while retriving target user agent' } as IExecutionResultTelemetryProperties;
+                coreUtils.fillErrorDetails(properties, rejection);
+                return properties;
+            }
+        });
+
+        versionInformationPromise.then(versionInformation => {
+            logger.log('Target userAgent: ' + versionInformation['Versions.Target.UserAgent']);
 
             // Send the versions information as it's own event so we can easily backfill other events in the user session if needed
-            versionInformationPromise.then(versionInformation => telemetry.telemetry.reportEvent('target-version', versionInformation));
-
-            // Add version information to all telemetry events from now on
-            telemetry.telemetry.addCustomGlobalProperty(versionInformationPromise);
+            telemetry.telemetry.reportEvent('target-version', versionInformation);
         });
+
+        // Add version information to all telemetry events from now on
+        telemetry.telemetry.addCustomGlobalProperty(versionInformationPromise);
     }
 
     protected runConnection(): Promise<void>[] {
