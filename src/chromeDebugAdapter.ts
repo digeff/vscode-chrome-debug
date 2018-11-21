@@ -41,9 +41,9 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
     private _userRequestedUrl: string;
     private _doesHostSupportLaunchUnelevatedProcessRequest: boolean;
 
-    public initialize(args: IExtendedInitializeRequestArguments): VSDebugProtocolCapabilities {
+    public async initialize(args: IExtendedInitializeRequestArguments): Promise<VSDebugProtocolCapabilities> {
         this._overlayHelper = new utils.DebounceHelper(/*timeoutMs=*/200);
-        const capabilities: VSDebugProtocolCapabilities = super.initialize(args);
+        const capabilities: VSDebugProtocolCapabilities = await super.initialize(args);
         capabilities.supportsRestartRequest = true;
         capabilities.supportsSetExpression = true;
         capabilities.supportsLogPoints = true;
@@ -57,7 +57,7 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
         return capabilities;
     }
 
-    public launch(args: ILaunchRequestArgs, telemetryPropertyCollector: ITelemetryPropertyCollector, seq?: number): Promise<void> {
+    public launch(args: ILaunchRequestArgs, telemetryPropertyCollector: ITelemetryPropertyCollector, _seq?: number): Promise<void> {
         if ((args.breakOnLoad || typeof args.breakOnLoad === 'undefined') && !args.breakOnLoadStrategy) {
             args.breakOnLoadStrategy = 'instrument';
         }
@@ -497,7 +497,7 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
             semaphoreFile, chromePath, ...chromeArgs], {});
 
         chromeProc.unref();
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve, _reject) => {
             chromeProc.on('message', resolve);
         });
 
