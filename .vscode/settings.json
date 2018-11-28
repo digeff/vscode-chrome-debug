@@ -3,8 +3,15 @@
     "files.trimTrailingWhitespace": true,
     "files.exclude": {
         ".git": true,
+        ".github/**": true,
+        ".vsts/**": true,
         "bin": true,
+        "i18n/**": true,
+        "images/**": true,
+        "msbuild/**": true,
         "node_modules": false,
+        "node_modules/**": true,
+        "out/**": true,
         "package.nls.*.json": true
     },
     "search.exclude": {

@@ -3,21 +3,17 @@
  *--------------------------------------------------------*/
 
 import * as os from 'os';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as utils from './utils';
 
-import {ChromeDebugAdapter as CoreDebugAdapter, logger, utils as coreUtils, ISourceMapPathOverrides, ChromeDebugSession, telemetry, ITelemetryPropertyCollector, IOnPausedResult, Version } from 'vscode-chrome-debug-core';
-import { spawn, ChildProcess, fork, execSync } from 'child_process';
+import {ChromeDebugAdapter as CoreDebugAdapter, logger, utils as coreUtils, ISourceMapPathOverrides,
+    ChromeDebugSession, telemetry, ITelemetryPropertyCollector, Version } from 'vscode-chrome-debug-core';
+import {  fork, execSync } from 'child_process';
 import { Crdp } from 'vscode-chrome-debug-core';
 import { DebugProtocol } from 'vscode-debugprotocol';
 
 import { ILaunchRequestArgs, IAttachRequestArgs, ICommonRequestArgs, ISetExpressionArgs, VSDebugProtocolCapabilities, ISetExpressionResponseBody } from './chromeDebugInterfaces';
-import * as utils from './utils';
-import * as errors from './errors';
 
-import * as nls from 'vscode-nls';
 import { FinishedStartingUpEventArguments } from 'vscode-chrome-debug-core/lib/src/executionTimingsReporter';
-let localize = nls.loadMessageBundle();
 
 // Keep in sync with sourceMapPathOverrides package.json default
 const DefaultWebSourceMapPathOverrides: ISourceMapPathOverrides = {
@@ -33,16 +29,9 @@ interface IExtendedInitializeRequestArguments extends DebugProtocol.InitializeRe
 }
 
 export class ChromeDebugAdapter extends CoreDebugAdapter {
-    private _pagePauseMessage = 'Paused in Visual Studio Code';
-
-    private _chromeProc: ChildProcess;
-    private _overlayHelper: utils.DebounceHelper;
-    private _chromePID: number;
     private _userRequestedUrl: string;
-    private _doesHostSupportLaunchUnelevatedProcessRequest: boolean;
 
     public async initialize(args: IExtendedInitializeRequestArguments): Promise<VSDebugProtocolCapabilities> {
-        this._overlayHelper = new utils.DebounceHelper(/*timeoutMs=*/200);
         const capabilities: VSDebugProtocolCapabilities = await super.initialize(args);
         capabilities.supportsRestartRequest = true;
         capabilities.supportsSetExpression = true;
@@ -51,8 +40,6 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
         if (args.locale) {
             localize = nls.config({ locale: args.locale })();
         }
-
-        this._doesHostSupportLaunchUnelevatedProcessRequest = args.supportsLaunchUnelevatedProcessRequest || false;
 
         return capabilities;
     }
@@ -63,91 +50,7 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
         }
 
         return super.launch(args, telemetryPropertyCollector).then(async () => {
-            let runtimeExecutable: string;
-            if (args.shouldLaunchChromeUnelevated !== undefined) {
-                telemetryPropertyCollector.addTelemetryProperty('shouldLaunchChromeUnelevated', args.shouldLaunchChromeUnelevated.toString());
-            }
-            if (this._doesHostSupportLaunchUnelevatedProcessRequest) {
-                telemetryPropertyCollector.addTelemetryProperty('doesHostSupportLaunchUnelevated', 'true');
-            }
-            if (args.runtimeExecutable) {
-                const re = findExecutable(args.runtimeExecutable);
-                if (!re) {
-                    return errors.getNotExistErrorResponse('runtimeExecutable', args.runtimeExecutable);
-                }
 
-                runtimeExecutable = re;
-            }
-
-            runtimeExecutable = runtimeExecutable || utils.getBrowserPath();
-            if (!runtimeExecutable) {
-                return coreUtils.errP(localize('attribute.chrome.missing', "Can't find Chrome - install it or set the \"runtimeExecutable\" field in the launch config."));
-            }
-
-            // Start with remote debugging enabled
-            const port = args.port || 9222;
-            const chromeArgs: string[] = [];
-            const chromeEnv: coreUtils.IStringDictionary<string> = args.env || null;
-            const chromeWorkingDir: string = args.cwd || null;
-
-            if (!args.noDebug) {
-                chromeArgs.push('--remote-debugging-port=' + port);
-            }
-
-            // Also start with extra stuff disabled
-            chromeArgs.push(...['--no-first-run', '--no-default-browser-check']);
-            if (args.runtimeArgs) {
-                telemetryPropertyCollector.addTelemetryProperty('numberOfChromeCmdLineSwitchesBeingUsed', String(args.runtimeArgs.length));
-                chromeArgs.push(...args.runtimeArgs);
-            }
-
-            // Set a default userDataDir, if the user opted in explicitly with 'true' or if args.userDataDir is not set (only when runtimeExecutable is not set).
-            // Can't set it automatically with runtimeExecutable because it may not be desired with Electron, other runtimes, random scripts.
-            if (
-                args.userDataDir === true ||
-                (typeof args.userDataDir === 'undefined' && !args.runtimeExecutable)
-            ) {
-                args.userDataDir = path.join(os.tmpdir(), `vscode-chrome-debug-userdatadir_${port}`);
-            }
-
-            if (args.userDataDir) {
-                chromeArgs.push('--user-data-dir=' + args.userDataDir);
-            }
-
-            if (args._clientOverlayPausedMessage) {
-                this._pagePauseMessage = args._clientOverlayPausedMessage;
-            }
-
-            let launchUrl: string;
-            if (args.file) {
-                launchUrl = coreUtils.pathToFileURL(args.file);
-            } else if (args.url) {
-                launchUrl = args.url;
-            }
-
-            if (launchUrl && !args.noDebug) {
-                // We store the launch file/url provided and temporarily launch and attach to about:blank page. Once we receive configurationDone() event, we redirect the page to this file/url
-                // This is done to facilitate hitting breakpoints on load
-                this._userRequestedUrl = launchUrl;
-                launchUrl = 'about:blank';
-            }
-
-            if (launchUrl) {
-                chromeArgs.push(launchUrl);
-            }
-
-            this._chromeProc = await this.spawnChrome(runtimeExecutable, chromeArgs, chromeEnv, chromeWorkingDir, !!args.runtimeExecutable,
-                 args.shouldLaunchChromeUnelevated);
-            if (this._chromeProc) {
-                this._chromeProc.on('error', (err) => {
-                    const errMsg = 'Chrome error: ' + err;
-                    logger.error(errMsg);
-                    this.terminateSession(errMsg);
-                });
-            }
-
-            return args.noDebug ? undefined :
-                this.doAttach(port, launchUrl || args.urlFilter, args.address, args.timeout, undefined, args.extraCRDPChannelPort);
         });
     }
 
@@ -317,20 +220,6 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
         ];
     }
 
-    protected async onPaused(notification: Crdp.Debugger.PausedEvent, expectingStopReason = this._expectingStopReason): Promise<IOnPausedResult> {
-        const result = (await super.onPaused(notification, expectingStopReason));
-
-        if (result.didPause) {
-            this._overlayHelper.doAndCancel(() => {
-                return this._domains.has('Overlay') ?
-                    this.chrome.Overlay.setPausedInDebuggerMessage({ message: this._pagePauseMessage }).catch(() => { }) :
-                    (<any>this.chrome).Page.configureOverlay({ message: this._pagePauseMessage }).catch(() => { });
-            });
-        }
-
-        return result;
-    }
-
     protected threadName(): string {
         return 'Chrome';
     }
@@ -342,26 +231,6 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
                 (<any>this.chrome).Page.configureOverlay({ }).catch(() => { });
         });
         super.onResumed();
-    }
-
-    public async disconnect(args: DebugProtocol.DisconnectArguments): Promise<void> {
-        const hadTerminated = this._hasTerminated;
-
-        // Disconnect before killing Chrome, because running "taskkill" when it's paused sometimes doesn't kill it
-        super.disconnect(args);
-
-        if ( (this._chromeProc || this._chromePID) && !hadTerminated) {
-            // Only kill Chrome if the 'disconnect' originated from vscode. If we previously terminated
-            // due to Chrome shutting down, or devtools taking over, don't kill Chrome.
-            if (coreUtils.getPlatform() === coreUtils.Platform.Windows && this._chromePID) {
-                await this.killChromeOnWindows(this._chromePID);
-            } else if (this._chromeProc) {
-                logger.log('Killing Chrome process');
-                this._chromeProc.kill('SIGINT');
-            }
-        }
-
-        this._chromeProc = null;
     }
 
     private async killChromeOnWindows(chromePID: number): Promise<void> {
@@ -409,82 +278,6 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
         return this.chrome ?
             this.chrome.Page.reload({ ignoreCache: true }) :
             Promise.resolve();
-    }
-
-    private async spawnChrome(chromePath: string, chromeArgs: string[], env: coreUtils.IStringDictionary<string>,
-                              cwd: string, usingRuntimeExecutable: boolean, shouldLaunchUnelevated: boolean): Promise<ChildProcess> {
-        /* __GDPR__FRAGMENT__
-           "StepNames" : {
-              "LaunchTarget.LaunchExe" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
-           }
-         */
-        this.events.emitStepStarted('LaunchTarget.LaunchExe');
-        const platform = coreUtils.getPlatform();
-        if (platform === coreUtils.Platform.Windows && shouldLaunchUnelevated) {
-            let chromePid: number;
-
-            if (this._doesHostSupportLaunchUnelevatedProcessRequest) {
-                chromePid = await this.spawnChromeUnelevatedWithClient(chromePath, chromeArgs);
-            } else {
-                chromePid = await this.spawnChromeUnelevatedWithWindowsScriptHost(chromePath, chromeArgs);
-            }
-
-            this._chromePID = chromePid;
-            // Cannot get the real Chrome process, so return null.
-            return null;
-        } else if (platform === coreUtils.Platform.Windows && !usingRuntimeExecutable) {
-            const options = {
-                execArgv: [],
-                silent: true
-            };
-            if (env) {
-                options['env'] = this.getFullEnv(env);
-            }
-            if (cwd) {
-                options['cwd'] = cwd;
-            }
-            const chromeProc = fork(getChromeSpawnHelperPath(), [chromePath, ...chromeArgs], options);
-            chromeProc.unref();
-
-            chromeProc.on('message', data => {
-                const pidStr = data.toString();
-                logger.log('got chrome PID: ' + pidStr);
-                this._chromePID = parseInt(pidStr, 10);
-            });
-
-            chromeProc.on('error', (err) => {
-                const errMsg = 'chromeSpawnHelper error: ' + err;
-                logger.error(errMsg);
-            });
-
-            chromeProc.stderr.on('data', data => {
-                logger.error('[chromeSpawnHelper] ' + data.toString());
-            });
-
-            chromeProc.stdout.on('data', data => {
-                logger.log('[chromeSpawnHelper] ' + data.toString());
-            });
-
-            return chromeProc;
-        } else {
-            logger.log(`spawn('${chromePath}', ${JSON.stringify(chromeArgs) })`);
-            const options = {
-                detached: true,
-                stdio: ['ignore'],
-            };
-            if (env) {
-                options['env'] = this.getFullEnv(env);
-            }
-            if (cwd) {
-                options['cwd'] = cwd;
-            }
-            const chromeProc = spawn(chromePath, chromeArgs, options);
-            chromeProc.unref();
-
-            this._chromePID = chromeProc.pid;
-
-            return chromeProc;
-        }
     }
 
     private async spawnChromeUnelevatedWithWindowsScriptHost(chromePath: string, chromeArgs: string[]): Promise<number> {
@@ -597,27 +390,6 @@ function replaceWebRootInSourceMapPathOverridesEntry(webRoot: string, entry: str
 
 function getChromeSpawnHelperPath(): string {
     return path.join(__dirname, 'chromeSpawnHelper.js');
-}
-
-function findExecutable(program: string): string | undefined {
-    if (process.platform === 'win32' && !path.extname(program)) {
-        const PATHEXT = process.env['PATHEXT'];
-        if (PATHEXT) {
-            const executableExtensions = PATHEXT.split(';');
-            for (const extension of executableExtensions) {
-                const programPath = program + extension;
-                if (fs.existsSync(programPath)) {
-                    return programPath;
-                }
-            }
-        }
-    }
-
-    if (fs.existsSync(program)) {
-        return program;
-    }
-
-    return undefined;
 }
 
 async function findNewlyLaunchedChromeProcess(semaphoreFile: string): Promise<string> {

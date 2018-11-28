@@ -1,0 +1,1 @@
+npm link vscode-chrome-debug-core
