@@ -6,14 +6,11 @@ import * as os from 'os';
 import * as utils from './utils';
 
 import {ChromeDebugAdapter as CoreDebugAdapter, logger, utils as coreUtils, ISourceMapPathOverrides,
-    ChromeDebugSession, telemetry, ITelemetryPropertyCollector, Version } from 'vscode-chrome-debug-core';
+    telemetry, ITelemetryPropertyCollector, Version } from 'vscode-chrome-debug-core';
 import {  fork, execSync } from 'child_process';
-import { Crdp } from 'vscode-chrome-debug-core';
 import { DebugProtocol } from 'vscode-debugprotocol';
 
 import { ILaunchRequestArgs, IAttachRequestArgs, ICommonRequestArgs, ISetExpressionArgs, VSDebugProtocolCapabilities, ISetExpressionResponseBody } from './chromeDebugInterfaces';
-
-import { FinishedStartingUpEventArguments } from 'vscode-chrome-debug-core/lib/src/executionTimingsReporter';
 
 // Keep in sync with sourceMapPathOverrides package.json default
 const DefaultWebSourceMapPathOverrides: ISourceMapPathOverrides = {
@@ -37,10 +34,6 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
         capabilities.supportsSetExpression = true;
         capabilities.supportsLogPoints = true;
 
-        if (args.locale) {
-            localize = nls.config({ locale: args.locale })();
-        }
-
         return capabilities;
     }
 
@@ -62,82 +55,13 @@ export class ChromeDebugAdapter extends CoreDebugAdapter {
         return super.attach(args);
     }
 
-    protected hookConnectionEvents(): void {
-        super.hookConnectionEvents();
-        this.chrome.Page.on('frameNavigated', params => this.onFrameNavigated(params));
-    }
-
-    protected onFrameNavigated(params: Crdp.Page.FrameNavigatedEvent): void {
-        if (this._userRequestedUrl) {
-            const url = params.frame.url;
-            const requestedUrlNoAnchor = this._userRequestedUrl.split('#')[0]; // Frame navigated url doesn't include the anchor
-            if (url === requestedUrlNoAnchor || decodeURI(url) === requestedUrlNoAnchor) { // 'http://localhost:1234/test%20page' will use the not decoded version, 'http://localhost:1234/test page' will use the decoded version
-                // Chrome started to navigate to the user's requested url
-                this.events.emit(ChromeDebugSession.FinishedStartingUpEventName, { requestedContentWasDetected: true } as FinishedStartingUpEventArguments);
-            } else if (url === 'chrome-error://chromewebdata/') {
-                // Chrome couldn't retrieve the web-page in the requested url
-                this.events.emit(ChromeDebugSession.FinishedStartingUpEventName, { requestedContentWasDetected: false, reasonForNotDetected: 'UnreachableURL'} as FinishedStartingUpEventArguments);
-            } else if (url.startsWith('chrome-error://')) {
-                // Uknown chrome error
-                this.events.emit(ChromeDebugSession.FinishedStartingUpEventName, { requestedContentWasDetected: false, reasonForNotDetected: 'UnknownChromeError'} as FinishedStartingUpEventArguments);
-            }
-        }
-    }
-
-    public async configurationDone(): Promise<void> {
-        if (this._userRequestedUrl) {
-            // This means all the setBreakpoints requests have been completed. So we can navigate to the original file/url.
-            this.chrome.Page.navigate({ url: this._userRequestedUrl }).then(() => {
-                /* __GDPR__FRAGMENT__
-                   "StepNames" : {
-                      "RequestedNavigateToUserPage" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
-                   }
-                 */
-                this.events.emitMilestoneReached('RequestedNavigateToUserPage');
-            });
-        }
-
-        await super.configurationDone();
-    }
-
-    public commonArgs(args: ICommonRequestArgs): void {
-        if (args.webRoot && (!args.pathMapping || !args.pathMapping['/'])) {
-            args.pathMapping = args.pathMapping || {};
-            args.pathMapping['/'] = args.webRoot;
-        }
-
-        args.sourceMaps = typeof args.sourceMaps === 'undefined' || args.sourceMaps;
-        args.sourceMapPathOverrides = getSourceMapPathOverrides(args.webRoot, args.sourceMapPathOverrides);
-        args.skipFileRegExps = ['^chrome-extension:.*'];
-
-        if (args.targetTypes === undefined) {
-            args.targetFilter = utils.defaultTargetFilter;
-        } else {
-            args.targetFilter = utils.getTargetFilter(args.targetTypes);
-        }
-
-        args.smartStep = typeof args.smartStep === 'undefined' ? !this._isVSClient : args.smartStep;
-
-        super.commonArgs(args);
-    }
-
     protected doAttach(port: number, targetUrl?: string, address?: string, timeout?: number, websocketUrl?: string, extraCRDPChannelPort?: number): Promise<void> {
         return super.doAttach(port, targetUrl, address, timeout, websocketUrl, extraCRDPChannelPort).then(async () => {
             // Don't return this promise, a failure shouldn't fail attach
             this.globalEvaluate({ expression: 'navigator.userAgent', silent: true })
                 .then(
                     evalResponse => logger.log('Target userAgent: ' + evalResponse.result.value),
-                    err => logger.log('Getting userAgent failed: ' + err.message))
-                .then(() => {
-                    const configDisableNetworkCache = (<ICommonRequestArgs>this._launchAttachArgs).disableNetworkCache;
-                    const cacheDisabled = typeof configDisableNetworkCache === 'boolean' ?
-                        configDisableNetworkCache :
-                        true;
-
-                    this.chrome.Network.setCacheDisabled({ cacheDisabled }).catch(() => {
-                        // Ignore failure
-                    });
-                });
+                    err => logger.log('Getting userAgent failed: ' + err.message));
 
             const versionInformationPromise = this.chrome.Browser.getVersion().then(
                 response => {

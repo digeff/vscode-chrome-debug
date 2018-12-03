@@ -200,6 +200,45 @@ export class DebugeeLauncher implements IDebugeeLauncher {
         this._chromeProc = null;
     }
 
+    protected onFrameNavigated(params: Crdp.Page.FrameNavigatedEvent): void {
+        if (this._userRequestedUrl) {
+            const url = params.frame.url;
+            const requestedUrlNoAnchor = this._userRequestedUrl.split('#')[0]; // Frame navigated url doesn't include the anchor
+            if (url === requestedUrlNoAnchor || decodeURI(url) === requestedUrlNoAnchor) { // 'http://localhost:1234/test%20page' will use the not decoded version, 'http://localhost:1234/test page' will use the decoded version
+                // Chrome started to navigate to the user's requested url
+                this.events.emit(ChromeDebugSession.FinishedStartingUpEventName, { requestedContentWasDetected: true } as FinishedStartingUpEventArguments);
+            } else if (url === 'chrome-error://chromewebdata/') {
+                // Chrome couldn't retrieve the web-page in the requested url
+                this.events.emit(ChromeDebugSession.FinishedStartingUpEventName, { requestedContentWasDetected: false, reasonForNotDetected: 'UnreachableURL'} as FinishedStartingUpEventArguments);
+            } else if (url.startsWith('chrome-error://')) {
+                // Uknown chrome error
+                this.events.emit(ChromeDebugSession.FinishedStartingUpEventName, { requestedContentWasDetected: false, reasonForNotDetected: 'UnknownChromeError'} as FinishedStartingUpEventArguments);
+            }
+        }
+    }
+
+    public waitForDebugeeToBeReady(): Promise<void> {
+        throw new Error('Method not implemented. Wait until we navigate to the frame');
+    }
+
+    public async configurationDone(): Promise<void> {
+        if (this._userRequestedUrl) {
+            // This means all the setBreakpoints requests have been completed. So we can navigate to the original file/url.
+            this.chrome.Page.navigate({ url: this._userRequestedUrl }).then(() => {
+                /* __GDPR__FRAGMENT__
+                   "StepNames" : {
+                      "RequestedNavigateToUserPage" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
+                   }
+                 */
+                this.events.emitMilestoneReached('RequestedNavigateToUserPage');
+            });
+        }
+    }
+
+    protected install(): void {
+        this.chrome.Page.on('frameNavigated', params => this.onFrameNavigated(params));
+    }
+
     constructor(@inject(ConnectedCDAConfiguration) private readonly _configuration: ConnectedCDAConfiguration) {
 
     }
