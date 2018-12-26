@@ -83,29 +83,35 @@ function doBuild(buildNls, failOnError) {
         });
 }
 
-gulp.task('build', () => {
-    return runSequence('clean', '_build');
+gulp.task('clean', () => {
+    return del(['out/**', 'vscode-chrome-debug-*.vsix']);
 });
 
-gulp.task('_build', ['copy-scripts'], () => {
+gulp.task('copy-scripts',
+    () => {
+        return gulp.src(scripts, {
+            base: '.',
+            allowEmpty: true // TODO: Figure out why 'src/terminateProcess.sh' doesn't exist, and remove this flag
+        })
+            .pipe(gulp.dest('out'));
+    });
+
+gulp.task('_build', gulp.series(['copy-scripts'], () => {
     return doBuild(true, true);
-});
+}));
 
-gulp.task('_dev-build', ['copy-scripts'], () => {
+gulp.task('build', gulp.series('clean', '_build'));
+
+gulp.task('_dev-build', gulp.series(['copy-scripts'], () => {
     return doBuild(false, false);
-});
+}));
 
-gulp.task('copy-scripts', () => {
-    return gulp.src(scripts, { base: '.' })
-        .pipe(gulp.dest('out'));
-});
-
-gulp.task('watch', ['clean'], cb => {
+gulp.task('watch', gulp.series(['clean'], cb => {
     log('Watching build sources...');
     return runSequence('_dev-build', () => gulp.watch(watchedSources, ['_dev-build']));
-});
+}));
 
-gulp.task('default', ['build']);
+gulp.task('default', gulp.series(['build']));
 
 gulp.task('tslint', () => {
     return gulp.src(lintSources, { base: '.' })
@@ -113,10 +119,6 @@ gulp.task('tslint', () => {
             formatter: "verbose"
         }))
         .pipe(tslint.report({ emitError: false }));
-});
-
-gulp.task('clean', () => {
-    return del(['out/**', 'vscode-chrome-debug-*.vsix']);
 });
 
 function verifyNotALinkedModule(modulePath) {
@@ -156,31 +158,27 @@ gulp.task('vsce-package', function () {
     return vsce.createVSIX(packageOptions);
 });
 
-gulp.task('publish', function (callback) {
-    runSequence('build', 'add-i18n', 'vsce-publish', callback);
-});
-
-gulp.task('package', function (callback) {
-    runSequence('build', 'add-i18n', 'vsce-package', callback);
-});
-
 gulp.task('add-i18n', function () {
     return gulp.src(['package.nls.json'])
         .pipe(nls.createAdditionalLanguageFiles(defaultLanguages, 'i18n'))
         .pipe(gulp.dest('.'));
 });
 
-gulp.task('transifex-push', ['build'], function () {
+gulp.task('publish', gulp.series('build', 'add-i18n', 'vsce-publish'));
+
+gulp.task('package', gulp.series('build', 'add-i18n', 'vsce-package'));
+
+gulp.task('transifex-push', gulp.series(['build'], function () {
     return gulp.src(['package.nls.json', 'out/nls.metadata.header.json', 'out/nls.metadata.json'])
         .pipe(nls.createXlfFiles(transifexProjectName, transifexExtensionName))
         .pipe(nls.pushXlfFiles(transifexApiHostname, transifexApiName, transifexApiToken));
-});
+}));
 
-gulp.task('transifex-push-test', ['build'], function () {
+gulp.task('transifex-push-test', gulp.series(['build'], function () {
     return gulp.src(['package.nls.json', 'out/nls.metadata.header.json', 'out/nls.metadata.json'])
         .pipe(nls.createXlfFiles(transifexProjectName, transifexExtensionName))
         .pipe(gulp.dest(path.join('..', `${transifexExtensionName}-push-test`)));
-});
+}));
 
 gulp.task('transifex-pull', function () {
     return es.merge(defaultLanguages.map(function (language) {

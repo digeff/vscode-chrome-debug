@@ -6,23 +6,33 @@ import { ChildProcess, fork, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ITelemetryPropertyCollector, logger, telemetry, utils as coreUtils, ILaunchResult, IDebuggeeLauncher } from 'vscode-chrome-debug-core';
+import { ITelemetryPropertyCollector, logger, telemetry, utils as coreUtils,
+    ILaunchResult, IDebuggeeLauncher, inject, injectable, TYPES, ISession } from 'vscode-chrome-debug-core';
 import * as nls from 'vscode-nls';
-import { ILaunchRequestArgs } from './chromeDebugInterfaces';
-import * as errors from './errors';
-import * as utils from './utils';
+import { ILaunchRequestArgs } from '../chromeDebugInterfaces';
+import * as errors from '../errors';
+import * as utils from '../utils';
 
 let localize = nls.loadMessageBundle();
 
-export class ChromeLauncher implements IDebuggeeLauncher {
+export interface IChromeProcessIDProvider {
+    readonly chromePID: number;
+}
 
-    private _pagePauseMessage = 'Paused in Visual Studio Code';
-
+@injectable()
+export class ChromeLauncher implements IDebuggeeLauncher, IChromeProcessIDProvider {
     private _chromeProc: ChildProcess;
-    private _overlayHelper: utils.DebounceHelper;
-    private _chromePID: number;
     private _userRequestedUrl: string;
     private _doesHostSupportLaunchUnelevatedProcessRequest: boolean;
+    private _chromePID: number;
+
+    public get userRequestedUrl(): string {
+        return this._userRequestedUrl;
+    }
+
+    public get chromePID(): number {
+        return this._chromePID;
+    }
 
     public async launch(args: ILaunchRequestArgs, telemetryPropertyCollector: ITelemetryPropertyCollector): Promise<ILaunchResult> {
         let runtimeExecutable: string;
@@ -76,10 +86,6 @@ export class ChromeLauncher implements IDebuggeeLauncher {
             chromeArgs.push('--user-data-dir=' + args.userDataDir);
         }
 
-        if (args._clientOverlayPausedMessage) {
-            this._pagePauseMessage = args._clientOverlayPausedMessage;
-        }
-
         let launchUrl: string;
         if (args.file) {
             launchUrl = coreUtils.pathToFileURL(args.file);
@@ -90,8 +96,8 @@ export class ChromeLauncher implements IDebuggeeLauncher {
         if (launchUrl && !args.noDebug) {
             // We store the launch file/url provided and temporarily launch and attach to about:blank page. Once we receive configurationDone() event, we redirect the page to this file/url
             // This is done to facilitate hitting breakpoints on load
-            // this._userRequestedUrl = launchUrl;
-            // launchUrl = 'about:blank';
+            this._userRequestedUrl = launchUrl;
+            launchUrl = 'about:blank';
         }
 
         if (launchUrl) {
@@ -113,10 +119,6 @@ export class ChromeLauncher implements IDebuggeeLauncher {
             port,
             url: launchUrl || args.urlFilter
         };
-    }
-
-    waitForDebugeeToBeReady(): Promise<void> {
-        throw new Error("Method not implemented.");
     }
 
     private async spawnChrome(chromePath: string, chromeArgs: string[], env: coreUtils.IStringDictionary<string>, cwd: string, usingRuntimeExecutable: boolean, shouldLaunchUnelevated: boolean): Promise<ChildProcess> {
@@ -230,19 +232,20 @@ export class ChromeLauncher implements IDebuggeeLauncher {
 
     private async spawnChromeUnelevatedWithClient(chromePath: string, chromeArgs: string[]): Promise<number> {
         return new Promise<number>((resolve, reject) => {
-            // this._session.sendRequest('launchUnelevated', {
-            //     'process': chromePath,
-            //     'args': chromeArgs
-            // }, 10000, (response) => {
-            //     if (!response.success) {
-            //         reject(new Error(response.message));
-            //     } else {
-            //         resolve(response.body.processId);
-            //     }
-            // });
+            this._session.sendRequest('launchUnelevated', {
+                'process': chromePath,
+                'args': chromeArgs
+            }, 10000, (response) => {
+                if (!response.success) {
+                    reject(new Error(response.message));
+                } else {
+                    resolve(response.body.processId);
+                }
+            });
         });
     }
 
+    constructor(@inject(TYPES.ISession) private readonly _session: ISession) {}
 }
 
 function getChromeSpawnHelperPath(): string {
