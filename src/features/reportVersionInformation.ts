@@ -22,13 +22,13 @@ export class ReportVersionInformation {
                 });
             });
 
-        const versionInformationPromise = this._debugeeVersionProvider.getVersion().then(
+        const versionInformationPromise = this._debugeeVersionProvider.componentVersions().then(
             response => {
                 const properties = {
-                    'Versions.Target.CRDPVersion': response.protocolVersion,
+                    'Versions.Target.CRDPVersion': response.product,
                     'Versions.Target.Revision': response.revision,
                     'Versions.Target.UserAgent': response.userAgent,
-                    'Versions.Target.V8': response.jsVersion
+                    'Versions.Target.V8': response.v8
                 };
 
                 const parts = (response.product || '').split('/');

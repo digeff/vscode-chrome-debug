@@ -1,5 +1,4 @@
-import { TYPES, inject, injectable, CDTPEnableableDiagnosticsModule, CDTP } from 'vscode-chrome-debug-core';
-import { CDTPDomainsEnabler } from 'vscode-chrome-debug-core/lib/src/chrome/cdtpDebuggee/infrastructure/cdtpDomainsEnabler';
+import { TYPES, inject, injectable, CDTPEnableableDiagnosticsModule, CDTP, CDTPDomainsEnabler } from 'vscode-chrome-debug-core';
 
 @injectable()
 export class CDTPResourceContentGetter extends CDTPEnableableDiagnosticsModule<CDTP.PageApi>  {

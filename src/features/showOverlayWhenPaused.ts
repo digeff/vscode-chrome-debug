@@ -1,5 +1,5 @@
 import * as utils from '../utils';
-import { Crdp, IPausedOverlay, ISupportedDomains, Internal, ICommunicator, inject, TYPES, CDTPEventsEmitterDiagnosticsModule, ConnectedCDAConfiguration } from 'vscode-chrome-debug-core';
+import { CDTP, IPausedOverlay, ISupportedDomains, Internal, ICommunicator, inject, TYPES, CDTPEventsEmitterDiagnosticsModule, ConnectedCDAConfiguration, CDTPDomainsEnabler } from 'vscode-chrome-debug-core';
 import { ILaunchRequestArgs } from '../chromeDebugInterfaces';
 
 export class ShowOverlayWhenPaused {
@@ -53,12 +53,14 @@ export class ShowOverlayWhenPaused {
     }
 }
 
-export class CDTPDeprecatedPage extends CDTPEventsEmitterDiagnosticsModule<Crdp.PageApi> {
+export class CDTPDeprecatedPage extends CDTPEventsEmitterDiagnosticsModule<CDTP.PageApi> {
     public configureOverlay(params: unknown): Promise<void> {
         return (<any>this.api).configureOverlay(params);
     }
 
-    constructor(protected api: Crdp.PageApi) {
-        super();
+    constructor(
+        protected api: CDTP.PageApi,
+        _domainsEnabler: CDTPDomainsEnabler) {
+        super(_domainsEnabler);
     }
 }

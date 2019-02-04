@@ -1,6 +1,6 @@
 import {
-    IDebuggeeRunner, ITelemetryPropertyCollector, Crdp, inject,
-    injectable, postConstruct, TYPES, IBrowserNavigation, utils as coreUtils
+    IDebuggeeRunner, ITelemetryPropertyCollector, inject,
+    injectable, postConstruct, TYPES, IBrowserNavigation, utils as coreUtils, CDTP
 } from 'vscode-chrome-debug-core';
 import { ChromeLauncher } from './chromeLauncher';
 
@@ -9,7 +9,7 @@ export class ChromeRunner implements IDebuggeeRunner {
     private readonly _userPageLaunched = coreUtils.promiseDefer<void>();
 
     public async run(_telemetryPropertyCollector: ITelemetryPropertyCollector): Promise<void> {
-        await this._browserNavigation.enable();
+        // TODO: Is this needed?  await this._browserNavigation.enable();
 
         if (this._chromeLauncher.userRequestedUrl) {
             // This means all the setBreakpoints requests have been completed. So we can navigate to the original file/url.
@@ -30,7 +30,7 @@ export class ChromeRunner implements IDebuggeeRunner {
         this._browserNavigation.onFrameNavigated(params => this.onFrameNavigated(params));
     }
 
-    protected onFrameNavigated(params: Crdp.Page.FrameNavigatedEvent): void {
+    protected onFrameNavigated(params: CDTP.Page.FrameNavigatedEvent): void {
         if (this._chromeLauncher.userRequestedUrl) {
             const url = params.frame.url;
             const requestedUrlNoAnchor = this._chromeLauncher.userRequestedUrl.split('#')[0]; // Frame navigated url doesn't include the anchor
