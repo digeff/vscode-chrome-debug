@@ -36,7 +36,6 @@ export class HTMLSourceLogic implements ISourcesLogic {
     }
 
     public async install(): Promise<this> {
-        await this._wrappedSourcesLogic.install();
         return this;
     }
 }
