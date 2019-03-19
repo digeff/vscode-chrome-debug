@@ -45,7 +45,7 @@ export class TestProjectSpec {
         this._props.webRoot = props.webRoot || props.projectRoot;
         this._props.outFiles = props.outFiles || path.join(props.projectRoot, 'out');
         this._props.port = props.port || 7890;
-        this._props.url = props.url || `http://localhost:${props.port}`;
+        this._props.url = props.url || `http://localhost:${props.port}/`;
         this._props.launchConfig = props.launchConfig || { url: props.url, outFiles: props.outFiles, sourceMaps: true, webRoot: props.webRoot };
     }
 

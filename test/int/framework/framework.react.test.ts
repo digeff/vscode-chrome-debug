@@ -45,9 +45,10 @@ puppeteerSuite('React Framework Tests', TEST_SPEC, (suiteContext) => {
             // click 3 times, state will be = 2 on the third click
             await incBtn.click();
             await incBtn.click();
+            setTimeout(() => incBtn.click(), 250);
             // don't await the last click, as the stopped debugger will deadlock it
-            incBtn.click();
             await suiteContext.debugClient.assertStoppedLocation('breakpoint',  location);
+            await suiteContext.debugClient.continueRequest();
         });
     });
 });
