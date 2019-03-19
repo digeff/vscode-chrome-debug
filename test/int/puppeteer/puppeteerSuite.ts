@@ -10,6 +10,7 @@ import { launchTestAdapter } from '../intTestSupport';
 import { getPageByUrl, connectPuppeteer } from './puppeteerSupport';
 import { FrameworkTestContext, TestProjectSpec } from '../framework/frameworkTestSupport';
 import { promiseTimeout } from 'vscode-chrome-debug-core/lib/src/utils';
+import { loadProjectLabels } from '../labels';
 
 /**
  * Extends the normal debug adapter context to include context relevant to puppeteer tests.
@@ -71,6 +72,9 @@ export function puppeteerSuite(
     setup(async () => {
       suiteContext.debugClient = await testSetup.setup();
       await suiteContext.debugClient;
+
+      suiteContext.breakpointLabels = await loadProjectLabels(testSpec.props.webRoot);
+
       server = createServer({ root: testSpec.props.webRoot });
       server.listen(7890);
     });
