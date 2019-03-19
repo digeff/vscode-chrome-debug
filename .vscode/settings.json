@@ -4,7 +4,10 @@
     "files.exclude": {
         ".git": true,
         "bin": true,
+        "i18n/**": true,
         "node_modules": false,
+        "node_modules/**": true,
+        "out/**": true,
         "package.nls.*.json": true
     },
     "search.exclude": {
