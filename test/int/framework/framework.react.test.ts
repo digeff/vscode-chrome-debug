@@ -27,6 +27,7 @@ puppeteerSuite('React Framework Tests', TEST_SPEC, (suiteContext) => {
         frameworkTests.testBreakOnLoad('react_App_render');
         frameworkTests.testStepOver('react_Counter_increment');
         frameworkTests.testStepOut('react_Counter_increment', 'react_Counter_stepOut');
+        frameworkTests.testStepIn('react_Counter_stepInStop', 'react_Counter_stepIn');
     });
 
     suite('React specific tests', () => {
@@ -48,8 +49,7 @@ puppeteerSuite('React Framework Tests', TEST_SPEC, (suiteContext) => {
             await incBtn.click();
             await incBtn.click();
             let blub = suiteContext.debugClient.assertStoppedLocation('breakpoint',  location);
-            incBtn.click()
-            //setTimeout(() => incBtn.click(), 250);
+            incBtn.click();
             // don't await the last click, as the stopped debugger will deadlock it
             await blub;
             await suiteContext.debugClient.continueRequest();
