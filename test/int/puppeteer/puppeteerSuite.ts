@@ -5,7 +5,7 @@
 
 import { createServer } from 'http-server';
 import * as puppeteer from 'puppeteer';
-import * as fs from 'fs';
+import * as path from 'path';
 import * as testSetup from '../testSetup';
 import { launchTestAdapter } from '../intTestSupport';
 import { getPageByUrl, connectPuppeteer } from './puppeteerSupport';
@@ -16,16 +16,21 @@ import { MethodsCalledLogger, wrapWithMethodLogger } from '../core-v2/chrome/log
 import { logger } from 'vscode-debugadapter';
 import { LogLevel } from 'vscode-debugadapter/lib/logger';
 
-logger.setup(LogLevel.Verbose, fs.temp);
+const dateTime = new Date().toISOString().replace('T', ' ').replace(/\.[0-9]+^/, '');
+
+const logPath = path.resolve(process.cwd(), 'logs', `testRun-${dateTime}.log`);
+logger.init(() => ({}), logPath);
+logger.setup(LogLevel.Verbose, logPath);
+logger.log('test');
 
 /**
  * Extends the normal debug adapter context to include context relevant to puppeteer tests.
  */
 export interface PuppeteerTestContext extends FrameworkTestContext {
-    /** The connected puppeteer browser object */
-    browser: puppeteer.Browser;
-    /** The currently running html page in Chrome */
-    page: puppeteer.Page;
+  /** The connected puppeteer browser object */
+  browser: puppeteer.Browser;
+  /** The currently running html page in Chrome */
+  page: puppeteer.Page;
 }
 
 /**
@@ -37,22 +42,22 @@ export interface PuppeteerTestContext extends FrameworkTestContext {
  * @param testFunction The inner test function that will run a test using puppeteer
  */
 export async function puppeteerTest(
-    description: string,
-    context: FrameworkTestContext,
-    testFunction: (context: PuppeteerTestContext, page: puppeteer.Page) => Promise<any>
-  ) {
-    return test(description, async () => {
-      let debugClient = await context.debugClient;
-      await launchTestAdapter(debugClient, context.testSpec.props.launchConfig);
-      let browser = await connectPuppeteer(9222);
+  description: string,
+  context: FrameworkTestContext,
+  testFunction: (context: PuppeteerTestContext, page: puppeteer.Page) => Promise<any>
+) {
+  return test(description, async () => {
+    let debugClient = await context.debugClient;
+    await launchTestAdapter(debugClient, context.testSpec.props.launchConfig);
+    let browser = await connectPuppeteer(9222);
 
 
 
-      let page = await getPageByUrl(browser, context.testSpec.props.url);
-      const wrappedPage = wrapWithMethodLogger(page, 'PuppeterPage');
-      await testFunction({ ...context, browser, page: wrappedPage}, wrappedPage);
-    });
-  }
+    let page = await getPageByUrl(browser, context.testSpec.props.url);
+    const wrappedPage = wrapWithMethodLogger(page, 'PuppeterPage');
+    await testFunction({ ...context, browser, page: wrappedPage }, wrappedPage);
+  });
+}
 
 /**
  * Defines a custom test suite which will:
