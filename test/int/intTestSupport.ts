@@ -8,6 +8,9 @@
  */
 
 import { DebugClient } from 'vscode-debugadapter-testsupport';
+import { findPositionOfTextInFile } from './utils/findPositionOfTextInFile';
+import { DebugProtocol } from 'vscode-debugprotocol';
+import { ExtendedDebugClient } from 'vscode-chrome-debug-core-testsupport';
 
 /**
  * Simple breakpoint location params (based on what the debug test client accepts)
