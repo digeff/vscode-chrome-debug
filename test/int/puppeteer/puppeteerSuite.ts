@@ -5,12 +5,18 @@
 
 import { createServer } from 'http-server';
 import * as puppeteer from 'puppeteer';
+import * as fs from 'fs';
 import * as testSetup from '../testSetup';
 import { launchTestAdapter } from '../intTestSupport';
 import { getPageByUrl, connectPuppeteer } from './puppeteerSupport';
 import { FrameworkTestContext, TestProjectSpec } from '../framework/frameworkTestSupport';
 import { promiseTimeout } from 'vscode-chrome-debug-core/lib/src/utils';
 import { loadProjectLabels } from '../labels';
+import { MethodsCalledLogger, wrapWithMethodLogger } from '../core-v2/chrome/logging/methodsCalledLogger';
+import { logger } from 'vscode-debugadapter';
+import { LogLevel } from 'vscode-debugadapter/lib/logger';
+
+logger.setup(LogLevel.Verbose, fs.temp);
 
 /**
  * Extends the normal debug adapter context to include context relevant to puppeteer tests.
@@ -43,7 +49,8 @@ export async function puppeteerTest(
 
 
       let page = await getPageByUrl(browser, context.testSpec.props.url);
-      await testFunction({ ...context, browser, page}, page);
+      const wrappedPage = wrapWithMethodLogger(page, 'PuppeterPage');
+      await testFunction({ ...context, browser, page: wrappedPage}, wrappedPage);
     });
   }
 
