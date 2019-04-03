@@ -111,8 +111,8 @@ class UpdatingImmediately implements IInternalFileBreakpointsWizardState {
         const vsCodeStatus = this.currentBreakpointsMapping.get(breakpoint);
         const location = { path: this._internal.filePath, line: vsCodeStatus.line, colum: vsCodeStatus.column };
         await this._internal.client.assertStoppedLocation('breakpoint', location);
-        await actionResult;
         await this._internal.client.continueRequest();
+        await actionResult;
     }
 }
 

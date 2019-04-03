@@ -18,7 +18,7 @@ import { utils } from 'vscode-chrome-debug-core';
 puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) => {
     suite('Hit count breakpoints tests', () => {
 
-        puppeteerTest('DIEGO1 this.state.count == 3 hits only the 3rd time the button is clicked', suiteContext, async (context, page) => {
+        puppeteerTest('DIEGO1 = 3 hit count breakpoint hits on the 3rd click', suiteContext, async (context, page) => {
             const incBtn = await page.waitForSelector('#incrementBtn');
 
             const breakpoints = new BreakpointsWizard(suiteContext.debugClient, reactTestSpecification);
@@ -35,7 +35,7 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
 
             await incBtn.click();
 
-            // TODO: await breakpoints.assertNotPaused();
+            // await breakpoints.assertNotPaused();
 
             await setStateBreakpoint.unset();
         });
