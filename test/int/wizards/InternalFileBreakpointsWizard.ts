@@ -94,6 +94,10 @@ class UpdatingImmediately implements IInternalFileBreakpointsWizardState {
     public assertIsVerified(breakpoint: BreakpointWizard): void {
         const breakpointStatus = this.currentBreakpointsMapping.get(breakpoint);
         assert(breakpointStatus.verified, `Expected breakpoint ${breakpoint} to be verified yet it wasn't: ${breakpointStatus.message}`);
+
+        // Convert to zero based from VS Code potocol one based
+        const zeroBasedLineNumber = breakpointStatus.line - 1;
+        assert.equal(zeroBasedLineNumber, breakpoint.position.lineNumber, `Expected breakpoint actual line to be ${breakpoint.position.lineNumber} yet it was ${zeroBasedLineNumber}`);
     }
 
     public onBreakpointStatusChange(breakpointStatusChanged: DebugProtocol.BreakpointEvent): void {
