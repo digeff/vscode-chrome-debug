@@ -8,12 +8,11 @@
  * Hit count breakpoint syntax: (>|>=|=|<|<=|%)?\s*([0-9]+)
  */
 
+import * as _ from 'lodash';
 import { puppeteerSuite, puppeteerTest } from '../puppeteer/puppeteerSuite';
 import { reactTestSpecification } from '../resources/resourceProjects';
 import { BreakpointsWizard as BreakpointsWizard } from '../wizards/breakpointsWizard';
-import * as _ from 'lodash';
 import { asyncRepeatSerially } from '../utils/repeat';
-import { utils } from 'vscode-chrome-debug-core';
 
 puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) => {
     suite('Hit count breakpoints tests', () => {
@@ -21,7 +20,7 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
         puppeteerTest('DIEGO1 = 3 hit count breakpoint hits on the 3rd click', suiteContext, async (context, page) => {
             const incBtn = await page.waitForSelector('#incrementBtn');
 
-            const breakpoints = new BreakpointsWizard(suiteContext.debugClient, reactTestSpecification);
+            const breakpoints = BreakpointsWizard.create(suiteContext.debugClient, reactTestSpecification);
             const counterBreakpoints = breakpoints.at('Counter.jsx');
 
             const setStateBreakpoint = await counterBreakpoints.hitCountBreakpoint({
@@ -43,7 +42,9 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
         puppeteerTest('DIEGO2 3 hit count breakpoints with different counts hit when appropiated', suiteContext, async (context, page) => {
             const incBtn = await page.waitForSelector('#incrementBtn');
 
-            const breakpoints = new BreakpointsWizard(suiteContext.debugClient, reactTestSpecification);
+            await incBtn.click();
+
+            const breakpoints = BreakpointsWizard.create(suiteContext.debugClient, reactTestSpecification);
             const counterBreakpoints = breakpoints.at('Counter.jsx');
 
             const setStateBreakpoint = await counterBreakpoints.hitCountBreakpoint({
@@ -74,7 +75,7 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
         });
 
         puppeteerTest('DIEGO3 3 batched hit count breakpoints with different counts hit when appropiated', suiteContext, async (context, page) => {
-            const breakpoints = new BreakpointsWizard(suiteContext.debugClient, reactTestSpecification);
+            const breakpoints = BreakpointsWizard.create(suiteContext.debugClient, reactTestSpecification);
             const counterBreakpoints = breakpoints.at('Counter.jsx');
             const setStateBreakpoint = await counterBreakpoints.unsetHitCountBreakpoint({
                 lineText: 'this.setState({ count: newval });',

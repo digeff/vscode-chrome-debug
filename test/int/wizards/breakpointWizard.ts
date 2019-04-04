@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { Position } from '../core-v2/chrome/internal/locations/location';
 import { IBPActionWhenHit } from '../core-v2/chrome/internal/breakpoints/bpActionWhenHit';
 import { InternalFileBreakpointsWizard } from './internalFileBreakpointsWizard';
@@ -30,7 +31,7 @@ export class BreakpointWizard {
     }
 
     public toString(): string {
-        return `${this._internal.filePath}:${this.position} ${this.actionWhenHit}`;
+        return `(BP ${path.basename(this._internal.filePath)}:${this.position} ${this.actionWhenHit})`;
     }
 
     private changeStateFunction(): ChangeBreakpointWizardState {

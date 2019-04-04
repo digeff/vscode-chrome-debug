@@ -10,18 +10,15 @@ import * as testSetup from '../testSetup';
 import { launchTestAdapter } from '../intTestSupport';
 import { getPageByUrl, connectPuppeteer } from './puppeteerSupport';
 import { FrameworkTestContext, TestProjectSpec } from '../framework/frameworkTestSupport';
-import { promiseTimeout } from 'vscode-chrome-debug-core/lib/src/utils';
 import { loadProjectLabels } from '../labels';
-import { MethodsCalledLogger, wrapWithMethodLogger } from '../core-v2/chrome/logging/methodsCalledLogger';
+import { wrapWithMethodLogger, MethodsCalledLogger, MethodsCalledLoggerConfiguration, IMethodsCalledLoggerConfiguration, ReplacementInstruction } from '../core-v2/chrome/logging/methodsCalledLogger';
 import { logger } from 'vscode-debugadapter';
 import { LogLevel } from 'vscode-debugadapter/lib/logger';
 
-const dateTime = new Date().toISOString().replace('T', ' ').replace(/\.[0-9]+^/, '');
-
+const dateTime = new Date().toISOString().replace(/:/g, '').replace('T', ' ').replace(/\.[0-9]+^/, '');
 const logPath = path.resolve(process.cwd(), 'logs', `testRun-${dateTime}.log`);
-logger.init(() => ({}), logPath);
+logger.init(null, logPath);
 logger.setup(LogLevel.Verbose, logPath);
-logger.log('test');
 
 /**
  * Extends the normal debug adapter context to include context relevant to puppeteer tests.
@@ -31,6 +28,16 @@ export interface PuppeteerTestContext extends FrameworkTestContext {
   browser: puppeteer.Browser;
   /** The currently running html page in Chrome */
   page: puppeteer.Page;
+}
+
+class PuppeteerMethodsCalledLoggerConfiguration implements IMethodsCalledLoggerConfiguration {
+  public readonly replacements: ReplacementInstruction[] = [];
+
+  public decideWhetherToWrapMethodResult(methodName: string | symbol | number, args: any, result: unknown, wrapWithName: (name: string) => void): void {
+    if (methodName === 'waitForSelector') {
+      wrapWithName(args[0]);
+    }
+  }
 }
 
 /**
@@ -47,6 +54,7 @@ export async function puppeteerTest(
   testFunction: (context: PuppeteerTestContext, page: puppeteer.Page) => Promise<any>
 ) {
   return test(description, async () => {
+    logger.log(`Starting test: ${description}`);
     let debugClient = await context.debugClient;
     await launchTestAdapter(debugClient, context.testSpec.props.launchConfig);
     let browser = await connectPuppeteer(9222);
@@ -54,8 +62,9 @@ export async function puppeteerTest(
 
 
     let page = await getPageByUrl(browser, context.testSpec.props.url);
-    const wrappedPage = wrapWithMethodLogger(page, 'PuppeterPage');
+    const wrappedPage = new MethodsCalledLogger(new PuppeteerMethodsCalledLoggerConfiguration(), page, 'PuppeterPage').wrapped();
     await testFunction({ ...context, browser, page: wrappedPage }, wrappedPage);
+    logger.log(`Ending test: ${description}`);
   });
 }
 
@@ -82,7 +91,7 @@ export function puppeteerSuite(
     let server: any;
 
     setup(async () => {
-      suiteContext.debugClient = await testSetup.setup();
+      suiteContext.debugClient = wrapWithMethodLogger(await testSetup.setup(), 'DebugAdapterClient');
       await suiteContext.debugClient;
 
       suiteContext.breakpointLabels = await loadProjectLabels(testSpec.props.webRoot);
