@@ -30,7 +30,7 @@ interface IInternalFileBreakpointsWizardState {
     assertIsVerified(breakpoint: BreakpointWizard): void;
 
     onBreakpointStatusChange(breakpointStatusChanged: DebugProtocol.BreakpointEvent): void;
-    assertIsHitThenResumeWhen(breakpoint: BreakpointWizard, lastActionToMakeBreakpointHit: () => Promise<void>): Promise<void>;
+    assertIsHitThenResumeWhen(breakpoint: BreakpointWizard, lastActionToMakeBreakpointHit: () => Promise<void>, expectedStackTrace: string): Promise<void>;
 }
 
 type CurrentBreakpointsMapping = ValidatedMap<BreakpointWizard, DebugProtocol.Breakpoint>;
@@ -64,7 +64,7 @@ class BatchingUpdates implements IInternalFileBreakpointsWizardState {
         throw new Error(`Breakpoint status shouldn't be updated while doing a batch update. Is this happening due to a product or test bug?`);
     }
 
-    public assertIsHitThenResumeWhen(_breakpoint: BreakpointWizard, _lastActionToMakeBreakpointHit: () => Promise<void>): Promise<void> {
+    public assertIsHitThenResumeWhen(_breakpoint: BreakpointWizard, _lastActionToMakeBreakpointHit: () => Promise<void>, _expectedStackTrace: string): Promise<void> {
         throw new Error(`Breakpoint shouldn't be verified while doing a batch update. Is this happening due to a product or test bug?`);
     }
 }
@@ -110,11 +110,15 @@ class UpdatingImmediately implements IInternalFileBreakpointsWizardState {
         return Array.from(this.currentBreakpointsMapping.keys());
     }
 
-    public async assertIsHitThenResumeWhen(breakpoint: BreakpointWizard, lastActionToMakeBreakpointHit: () => Promise<void>): Promise<void> {
+    public async assertIsHitThenResumeWhen(breakpoint: BreakpointWizard, lastActionToMakeBreakpointHit: () => Promise<void>, expectedStackTrace: string): Promise<void> {
         const actionResult = lastActionToMakeBreakpointHit();
         const vsCodeStatus = this.currentBreakpointsMapping.get(breakpoint);
         const location = { path: this._internal.filePath, line: vsCodeStatus.line, colum: vsCodeStatus.column };
         await this._internal.client.assertStoppedLocation('breakpoint', location);
+        const stackTraceResponse = await this._internal.client.stackTraceRequest();
+        assert.equal(stackTraceResponse.body.stackFrames.join('\n'), expectedStackTrace, `The stack trace when hitting breakpoint ${breakpoint} doesn't match what is expected`);
+
+        await this._internal.client.stackTraceRequest();
         await this._internal.client.continueRequest();
         await actionResult;
     }
@@ -163,8 +167,8 @@ export class InternalFileBreakpointsWizard {
         return new BreakpointWizard(this, position, new PauseOnHitCount(options.hitCountCondition));
     }
 
-    public async assertIsHitThenResumeWhen(breakpoint: BreakpointWizard, lastActionToMakeBreakpointHit: () => Promise<void>): Promise<void> {
-        this._state.assertIsHitThenResumeWhen(breakpoint, lastActionToMakeBreakpointHit);
+    public async assertIsHitThenResumeWhen(breakpoint: BreakpointWizard, lastActionToMakeBreakpointHit: () => Promise<void>, expectedStackTrace: string): Promise<void> {
+        this._state.assertIsHitThenResumeWhen(breakpoint, lastActionToMakeBreakpointHit, expectedStackTrace);
     }
 
     public assertIsVerified(breakpoint: BreakpointWizard): void {

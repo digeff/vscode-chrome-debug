@@ -20,8 +20,8 @@ export class BreakpointWizard {
         return this;
     }
 
-    public async assertIsHitThenResumeWhen(lastActionToMakeBreakpointHit: () => Promise<void>): Promise<BreakpointWizard> {
-        await this._state.assertIsHitThenResumeWhen(lastActionToMakeBreakpointHit);
+    public async assertIsHitThenResumeWhen(lastActionToMakeBreakpointHit: () => Promise<void>, expectedStackTrace: string): Promise<BreakpointWizard> {
+        await this._state.assertIsHitThenResumeWhen(lastActionToMakeBreakpointHit, expectedStackTrace);
         return this;
     }
 
@@ -46,7 +46,7 @@ export type ChangeBreakpointWizardState = (newState: IBreakpointWizardState) => 
 export interface IBreakpointWizardState {
     set(): Promise<void>;
     unset(): Promise<void>;
-    assertIsHitThenResumeWhen(lastActionToMakeBreakpointHit: () => Promise<void>): Promise<void>;
+    assertIsHitThenResumeWhen(lastActionToMakeBreakpointHit: () => Promise<void>, expectedStackTrace: string): Promise<void>;
     assertIsVerified(): void;
 }
 
@@ -66,8 +66,8 @@ class SetBreakpointWizard implements IBreakpointWizardState {
         this._changeState(new NotSetBreakpointWizard(this._owner, this._internal, this._changeState));
     }
 
-    public assertIsHitThenResumeWhen(lastActionToMakeBreakpointHit: () => Promise<void>): Promise<void> {
-        return this._internal.assertIsHitThenResumeWhen(this._owner, lastActionToMakeBreakpointHit);
+    public assertIsHitThenResumeWhen(lastActionToMakeBreakpointHit: () => Promise<void>, expectedStackTrace: string): Promise<void> {
+        return this._internal.assertIsHitThenResumeWhen(this._owner, lastActionToMakeBreakpointHit, expectedStackTrace);
     }
 
     public assertIsVerified(): void {
@@ -91,7 +91,7 @@ export class NotSetBreakpointWizard implements IBreakpointWizardState {
         throw new Error(`Can't unset a breakpoint that is already unset`);
     }
 
-    public assertIsHitThenResumeWhen(_lastActionToMakeBreakpointHit: () => Promise<void>): Promise<void> {
+    public assertIsHitThenResumeWhen(_lastActionToMakeBreakpointHit: () => Promise<void>, _expectedStackTrace: string): Promise<void> {
         throw new Error(`Can't expect to hit a breakpoint that is unset`);
     }
 

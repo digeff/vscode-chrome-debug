@@ -30,7 +30,7 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
 
             await asyncRepeatSerially(2, () => incBtn.click());
 
-            await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click());
+            await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
 
             await incBtn.click();
 
@@ -64,9 +64,9 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
 
             await Promise.all(_.times(2, () => incBtn.click()));
 
-            await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click());
-            await stepInBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click());
-            await setNewValBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click());
+            await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
+            await stepInBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
+            await setNewValBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
 
             await incBtn.click();
             // await breakpoints.assertNotPaused();
@@ -101,9 +101,9 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
             const incBtn = await page.waitForSelector('#incrementBtn');
             await Promise.all(_.times(2, () => incBtn.click()));
 
-            await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click());
-            await stepInBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click());
-            await setNewValBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click());
+            await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
+            await stepInBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
+            await setNewValBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
 
             await incBtn.click();
             await breakpoints.assertNotPaused();
