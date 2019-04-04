@@ -14,7 +14,7 @@ import { loadProjectLabels } from '../labels';
 import { wrapWithMethodLogger, MethodsCalledLogger, MethodsCalledLoggerConfiguration, IMethodsCalledLoggerConfiguration, ReplacementInstruction } from '../core-v2/chrome/logging/methodsCalledLogger';
 import { logger } from 'vscode-debugadapter';
 import { LogLevel } from 'vscode-debugadapter/lib/logger';
-import { HumanSlownessSimulator } from '../core-v2/chrome/utils/humanSlownessSimulator';
+import { HumanSlownessSimulator } from '../utils/humanSlownessSimulator';
 
 const dateTime = new Date().toISOString().replace(/:/g, '').replace('T', ' ').replace(/\.[0-9]+^/, '');
 const logPath = path.resolve(process.cwd(), 'logs', `testRun-${dateTime}.log`);
