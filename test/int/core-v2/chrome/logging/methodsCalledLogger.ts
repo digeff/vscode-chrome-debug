@@ -23,11 +23,17 @@ export class ReplacementInstruction {
 
 export interface IMethodsCalledLoggerConfiguration {
     readonly replacements: ReplacementInstruction[];
-    decideWhetherToWrapMethodResult(methodName: string | symbol | number, args: any, result: unknown, wrapWithName: (name: string) => void): void;
+    decideWhetherToWrapMethodResult(methodName: string | symbol | number, args: unknown[], result: unknown, wrapWithName: (name: string) => void): void;
+    decideWhetherToWrapEventEmitterListener(receiverName: string, methodName: string | symbol | number, args: unknown[], wrapWithName: (name: string) => void): void;
 }
 
 export class MethodsCalledLoggerConfiguration implements IMethodsCalledLoggerConfiguration {
-    public decideWhetherToWrapMethodResult(_methodName: string | symbol | number, _args: any, _result: unknown, _wrapWithName: (name: string) => void): void { }
+    public decideWhetherToWrapMethodResult(_methodName: string | symbol | number, _args: unknown[], _result: unknown, _wrapWithName: (name: string) => void): void { }
+    public decideWhetherToWrapEventEmitterListener(receiverName: string, methodName: string | symbol | number, args: unknown[], wrapWithName: (name: string) => void): void {
+        if (methodName === 'on') {
+            wrapWithName(`(${receiverName} emits ${args[0]})`);
+        }
+    }
 
     public constructor(private _replacements: ReplacementInstruction[]) { }
 
@@ -54,6 +60,12 @@ export class MethodsCalledLogger<T extends object> {
                 if (typeof originalPropertyValue === 'function') {
                     return (...args: any) => {
                         try {
+                            if (propertyKey === 'on' && args.length >= 2) {
+                                let listenerPossiblyWrapped = args[1];
+                                this._configuration.decideWhetherToWrapEventEmitterListener(this._objectToWrapName, propertyKey, args, name => listenerPossiblyWrapped = new MethodsCalledLogger(this._configuration, args[1], name).wrapped());
+                                args[1] = listenerPossiblyWrapped;
+                            }
+
                             const result = originalPropertyValue.apply(target, args);
                             if (!result || !result.then) {
                                 this.logCall(propertyKey, Synchronicity.Sync, args, Outcome.Succesful, result);

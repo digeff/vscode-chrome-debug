@@ -14,6 +14,7 @@ import { loadProjectLabels } from '../labels';
 import { wrapWithMethodLogger, MethodsCalledLogger, MethodsCalledLoggerConfiguration, IMethodsCalledLoggerConfiguration, ReplacementInstruction } from '../core-v2/chrome/logging/methodsCalledLogger';
 import { logger } from 'vscode-debugadapter';
 import { LogLevel } from 'vscode-debugadapter/lib/logger';
+import { HumanSlownessSimulator } from '../core-v2/chrome/utils/humanSlownessSimulator';
 
 const dateTime = new Date().toISOString().replace(/:/g, '').replace('T', ' ').replace(/\.[0-9]+^/, '');
 const logPath = path.resolve(process.cwd(), 'logs', `testRun-${dateTime}.log`);
@@ -38,7 +39,12 @@ class PuppeteerMethodsCalledLoggerConfiguration implements IMethodsCalledLoggerC
       wrapWithName(args[0]);
     }
   }
+
+  public decideWhetherToWrapEventEmitterListener(receiverName: string, methodName: string | symbol | number, args: unknown[], wrapWithName: (name: string) => void): void {
+  }
 }
+
+const humanSlownessSimulator = new HumanSlownessSimulator();
 
 /**
  * Launch a test with default settings and attach puppeteer. The test will start with the debug adapter
@@ -53,7 +59,9 @@ export async function puppeteerTest(
   context: FrameworkTestContext,
   testFunction: (context: PuppeteerTestContext, page: puppeteer.Page) => Promise<any>
 ) {
-  return test(description, async () => {
+  return test(description, async function () {
+    this.timeout(60000);
+
     logger.log(`Starting test: ${description}`);
     let debugClient = await context.debugClient;
     await launchTestAdapter(debugClient, context.testSpec.props.launchConfig);
@@ -62,6 +70,7 @@ export async function puppeteerTest(
 
 
     let page = await getPageByUrl(browser, context.testSpec.props.url);
+    page = humanSlownessSimulator.wrap(page);
     const wrappedPage = new MethodsCalledLogger(new PuppeteerMethodsCalledLoggerConfiguration(), page, 'PuppeterPage').wrapped();
     await testFunction({ ...context, browser, page: wrappedPage }, wrappedPage);
     logger.log(`Ending test: ${description}`);
@@ -91,7 +100,9 @@ export function puppeteerSuite(
     let server: any;
 
     setup(async () => {
-      suiteContext.debugClient = wrapWithMethodLogger(await testSetup.setup(), 'DebugAdapterClient');
+      let debugClient = wrapWithMethodLogger(await testSetup.setup(), 'DebugAdapterClient');
+      debugClient = humanSlownessSimulator.wrap(debugClient);
+      suiteContext.debugClient = debugClient;
       await suiteContext.debugClient;
 
       suiteContext.breakpointLabels = await loadProjectLabels(testSpec.props.webRoot);
