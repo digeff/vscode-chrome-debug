@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import { ExtendedDebugClient } from 'vscode-chrome-debug-core-testsupport';
+import { ExtendedDebugClient, THREAD_ID } from 'vscode-chrome-debug-core-testsupport';
 import { findPositionOfTextInFile } from '../utils/findPositionOfTextInFile';
 import { createColumnNumber } from '../core-v2/chrome/internal/locations/subtypes';
 import { DebugProtocol } from 'vscode-debugprotocol';
@@ -12,6 +12,7 @@ import { PromiseOrNot } from 'vscode-chrome-debug-core';
 import { ValidatedSet } from '../core-v2/chrome/collections/validatedSet';
 import assert = require('assert');
 import { BidirectionalMap } from '../core-v2/chrome/collections/bidirectionalMap';
+import { DebugClient } from 'vscode-debugadapter-testsupport';
 
 class BreakpointsUpdate {
     public constructor(
@@ -115,12 +116,35 @@ class UpdatingImmediately implements IInternalFileBreakpointsWizardState {
         const vsCodeStatus = this.currentBreakpointsMapping.get(breakpoint);
         const location = { path: this._internal.filePath, line: vsCodeStatus.line, colum: vsCodeStatus.column };
         await this._internal.client.assertStoppedLocation('breakpoint', location);
-        const stackTraceResponse = await this._internal.client.stackTraceRequest();
-        assert.equal(stackTraceResponse.body.stackFrames.join('\n'), expectedStackTrace, `The stack trace when hitting breakpoint ${breakpoint} doesn't match what is expected`);
+        const stackTraceResponse = await this._internal.client.send('stackTrace', {
+            threadId: THREAD_ID,
+            format: { // This is the format that Visual Studio uses by default
+                parameters: true,
+                parameterTypes: true,
+                parameterNames: true,
+                line: true,
+                module: true
+            }
+        });
 
-        await this._internal.client.stackTraceRequest();
+        if (!stackTraceResponse.success) {
+            throw new Error(`Expected the response to the stack trace request to be succesful yet it was: ${JSON.stringify(stackTraceResponse)}`);
+        }
+
+        const formattedExpectedStackTrace = expectedStackTrace.replace(/^\s+/gm, ''); // Remove the white space we put at the start of the lines to make the stack trace align with the code
+        const actualStackTrace = this.extractStackTrace(stackTraceResponse);
+        assert.equal(actualStackTrace, formattedExpectedStackTrace, `Expected the stack trace when hitting breakpoint ${breakpoint} to be:\n${formattedExpectedStackTrace}\nyet it is:\n${actualStackTrace}`);
+
         await this._internal.client.continueRequest();
         await actionResult;
+    }
+
+    private extractStackTrace(stackTraceResponse: DebugProtocol.StackTraceResponse): string {
+        return stackTraceResponse.body.stackFrames.map(f => this.printStackTraceFrame(f)).join('\n');
+    }
+
+    private printStackTraceFrame(frame: DebugProtocol.StackFrame): string {
+        return `${frame.name}${frame.presentationHint ? `(${frame.presentationHint})` : ''}`;
     }
 }
 

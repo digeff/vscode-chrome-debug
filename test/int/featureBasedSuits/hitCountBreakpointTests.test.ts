@@ -30,7 +30,24 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
 
             await asyncRepeatSerially(2, () => incBtn.click());
 
-            await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
+            await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), `
+                increment [Counter.jsx] Line 16
+                onClick [Counter.jsx] Line 29
+                ca [react-dom.production.min.js] Line 48
+                ja [react-dom.production.min.js] Line 68
+                ka [react-dom.production.min.js] Line 72
+                wa [react-dom.production.min.js] Line 139
+                Aa [react-dom.production.min.js] Line 168
+                ya [react-dom.production.min.js] Line 157
+                Da [react-dom.production.min.js] Line 231
+                Ad [react-dom.production.min.js] Line 1717
+                Gi [react-dom.production.min.js] Line 5989
+                Kb [react-dom.production.min.js] Line 659
+                Dd [react-dom.production.min.js] Line 1759
+                (anonymous function) [react-dom.production.min.js] Line 6016
+                push../node_modules/scheduler/cjs/scheduler.production.min.js.exports.unstable_runWithPriority [scheduler.production.min.js] Line 273
+                Ii [react-dom.production.min.js] Line 6015
+                Cd [react-dom.production.min.js] Line 1736`);
 
             await incBtn.click();
 
@@ -64,9 +81,54 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
 
             await Promise.all(_.times(2, () => incBtn.click()));
 
-            await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
-            await stepInBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
-            await setNewValBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
+            await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), `
+                increment [Counter.jsx] Line 16
+                onClick [Counter.jsx] Line 29
+                ca [react-dom.production.min.js] Line 48
+                ja [react-dom.production.min.js] Line 68
+                ka [react-dom.production.min.js] Line 72
+                wa [react-dom.production.min.js] Line 139
+                Aa [react-dom.production.min.js] Line 168
+                ya [react-dom.production.min.js] Line 157
+                Da [react-dom.production.min.js] Line 231
+                Ad [react-dom.production.min.js] Line 1717
+                Gi [react-dom.production.min.js] Line 5989
+                Kb [react-dom.production.min.js] Line 659
+                Dd [react-dom.production.min.js] Line 1759
+                (anonymous function) [react-dom.production.min.js] Line 6016
+                push../node_modules/scheduler/cjs/scheduler.production.min.js.exports.unstable_runWithPriority [scheduler.production.min.js] Line 273`);
+            await stepInBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), `
+                increment [Counter.jsx] Line 16
+                onClick [Counter.jsx] Line 29
+                ca [react-dom.production.min.js] Line 48
+                ja [react-dom.production.min.js] Line 68
+                ka [react-dom.production.min.js] Line 72
+                wa [react-dom.production.min.js] Line 139
+                Aa [react-dom.production.min.js] Line 168
+                ya [react-dom.production.min.js] Line 157
+                Da [react-dom.production.min.js] Line 231
+                Ad [react-dom.production.min.js] Line 1717
+                Gi [react-dom.production.min.js] Line 5989
+                Kb [react-dom.production.min.js] Line 659
+                Dd [react-dom.production.min.js] Line 1759
+                (anonymous function) [react-dom.production.min.js] Line 6016
+                push../node_modules/scheduler/cjs/scheduler.production.min.js.exports.unstable_runWithPriority [scheduler.production.min.js] Line 273`);
+            await setNewValBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), `
+                increment [Counter.jsx] Line 16
+                onClick [Counter.jsx] Line 29
+                ca [react-dom.production.min.js] Line 48
+                ja [react-dom.production.min.js] Line 68
+                ka [react-dom.production.min.js] Line 72
+                wa [react-dom.production.min.js] Line 139
+                Aa [react-dom.production.min.js] Line 168
+                ya [react-dom.production.min.js] Line 157
+                Da [react-dom.production.min.js] Line 231
+                Ad [react-dom.production.min.js] Line 1717
+                Gi [react-dom.production.min.js] Line 5989
+                Kb [react-dom.production.min.js] Line 659
+                Dd [react-dom.production.min.js] Line 1759
+                (anonymous function) [react-dom.production.min.js] Line 6016
+                push../node_modules/scheduler/cjs/scheduler.production.min.js.exports.unstable_runWithPriority [scheduler.production.min.js] Line 273`);
 
             await incBtn.click();
             // await breakpoints.assertNotPaused();

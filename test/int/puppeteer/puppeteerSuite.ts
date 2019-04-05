@@ -70,7 +70,9 @@ export async function puppeteerTest(
 
 
     let page = await getPageByUrl(browser, context.testSpec.props.url);
-    page = humanSlownessSimulator.wrap(page);
+    if (process.env.MSFT_RUN_TESTS_SLOWLY === 'true') {
+      page = humanSlownessSimulator.wrap(page);
+    }
     const wrappedPage = new MethodsCalledLogger(new PuppeteerMethodsCalledLoggerConfiguration(), page, 'PuppeterPage').wrapped();
     await testFunction({ ...context, browser, page: wrappedPage }, wrappedPage);
     logger.log(`Ending test: ${description}`);
@@ -101,7 +103,9 @@ export function puppeteerSuite(
 
     setup(async () => {
       let debugClient = wrapWithMethodLogger(await testSetup.setup(), 'DebugAdapterClient');
-      debugClient = humanSlownessSimulator.wrap(debugClient);
+      if (process.env.MSFT_RUN_TESTS_SLOWLY === 'true') {
+        debugClient = humanSlownessSimulator.wrap(debugClient);
+      }
       suiteContext.debugClient = debugClient;
       await suiteContext.debugClient;
 

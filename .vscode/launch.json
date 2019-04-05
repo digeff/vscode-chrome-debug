@@ -66,6 +66,9 @@
             "request": "launch",
             "name": "debug integration test",
             "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
+            "env": {
+                "MSFT_RUN_TESTS_SLOWLY": "false"
+            },
             "args": [
                 "--require", "source-map-support/register",
                 "-u", "tdd",
