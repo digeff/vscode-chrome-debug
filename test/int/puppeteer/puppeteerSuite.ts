@@ -16,8 +16,9 @@ import { logger } from 'vscode-debugadapter';
 import { LogLevel } from 'vscode-debugadapter/lib/logger';
 import { HumanSlownessSimulator } from '../utils/humanSlownessSimulator';
 
-const dateTime = new Date().toISOString().replace(/:/g, '').replace('T', ' ').replace(/\.[0-9]+^/, '');
-const logPath = path.resolve(process.cwd(), 'logs', `testRun-${dateTime}.log`);
+// const dateTime = new Date().toISOString().replace(/:/g, '').replace('T', ' ').replace(/\.[0-9]+^/, '');
+// const logPath = path.resolve(process.cwd(), 'logs', `testRun-${dateTime}.log`);
+const logPath = path.resolve(process.cwd(), 'logs', `testRun.log`);
 logger.init(null, logPath);
 logger.setup(LogLevel.Verbose, logPath);
 

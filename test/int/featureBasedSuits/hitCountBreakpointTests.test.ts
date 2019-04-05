@@ -59,8 +59,6 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
         puppeteerTest('DIEGO2 3 hit count breakpoints with different counts hit when appropiated', suiteContext, async (context, page) => {
             const incBtn = await page.waitForSelector('#incrementBtn');
 
-            await incBtn.click();
-
             const breakpoints = BreakpointsWizard.create(suiteContext.debugClient, reactTestSpecification);
             const counterBreakpoints = breakpoints.at('Counter.jsx');
 
@@ -97,6 +95,7 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
                 Dd [react-dom.production.min.js] Line 1759
                 (anonymous function) [react-dom.production.min.js] Line 6016
                 push../node_modules/scheduler/cjs/scheduler.production.min.js.exports.unstable_runWithPriority [scheduler.production.min.js] Line 273`);
+
             await stepInBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), `
                 increment [Counter.jsx] Line 16
                 onClick [Counter.jsx] Line 29
@@ -113,6 +112,7 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
                 Dd [react-dom.production.min.js] Line 1759
                 (anonymous function) [react-dom.production.min.js] Line 6016
                 push../node_modules/scheduler/cjs/scheduler.production.min.js.exports.unstable_runWithPriority [scheduler.production.min.js] Line 273`);
+
             await setNewValBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), `
                 increment [Counter.jsx] Line 16
                 onClick [Counter.jsx] Line 29
@@ -137,8 +137,11 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
         });
 
         puppeteerTest('DIEGO3 3 batched hit count breakpoints with different counts hit when appropiated', suiteContext, async (context, page) => {
+            const incBtn = await page.waitForSelector('#incrementBtn');
+
             const breakpoints = BreakpointsWizard.create(suiteContext.debugClient, reactTestSpecification);
             const counterBreakpoints = breakpoints.at('Counter.jsx');
+
             const setStateBreakpoint = await counterBreakpoints.unsetHitCountBreakpoint({
                 lineText: 'this.setState({ count: newval });',
                 hitCountCondition: '= 3'
@@ -160,7 +163,6 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
                 stepInBreakpoint.set();
             });
 
-            const incBtn = await page.waitForSelector('#incrementBtn');
             await Promise.all(_.times(2, () => incBtn.click()));
 
             await setStateBreakpoint.assertIsHitThenResumeWhen(() => incBtn.click(), '');
@@ -170,7 +172,11 @@ puppeteerSuite('React Framework Tests', reactTestSpecification, (suiteContext) =
             await incBtn.click();
             await breakpoints.assertNotPaused();
 
-            await setStateBreakpoint.unset();
+            counterBreakpoints.batch(async () => {
+                setStateBreakpoint.unset();
+                setNewValBreakpoint.unset();
+                stepInBreakpoint.unset();
+            });
         });
     });
 });
