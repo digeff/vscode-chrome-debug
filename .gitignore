@@ -12,3 +12,4 @@ testapp/.vscode/chrome
 testapp/**/out/
 bin
 obj
+logs/
