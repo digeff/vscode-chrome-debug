@@ -24,7 +24,7 @@ function formLaunchArgs(launchArgs: ILaunchRequestArgs & Dictionary<unknown>): v
     launchArgs.disableNetworkCache = true;
 
     if (!launchArgs.runtimeExecutable) {
-        launchArgs.runtimeExecutable = puppeteer.executablePath()
+        launchArgs.runtimeExecutable = puppeteer.executablePath();
     }
 
     // Start with a clean userDataDir for each test run

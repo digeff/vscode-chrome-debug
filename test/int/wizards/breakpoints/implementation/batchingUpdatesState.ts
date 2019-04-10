@@ -3,7 +3,7 @@ import { BreakpointWizard } from '../breakpointWizard';
 import { PromiseOrNot } from 'vscode-chrome-debug-core';
 import { ValidatedSet } from '../../../core-v2/chrome/collections/validatedSet';
 import {
-    IBreakpointsBatchingStrategy, InternalFileBreakpointsWizard, CurrentBreakpointsMapping, BreakpointsUpdate, BreakpointStatusChangedWithId
+    InternalFileBreakpointsWizard, CurrentBreakpointsMapping, BreakpointsUpdate, IBreakpointsBatchingStrategy, BreakpointStatusChangedWithId
 } from './internalFileBreakpointsWizard';
 
 export class BatchingUpdatesState implements IBreakpointsBatchingStrategy {

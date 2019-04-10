@@ -33,7 +33,10 @@
   "devDependencies": {
     "@types/chai": "^4.1.7",
     "@types/chai-string": "^1.4.1",
+<<<<<<< HEAD
     "@types/http-server": "^0.10.0",
+=======
+>>>>>>> Created some hit count breakpoint tests and the breakpoint testing
     "@types/lodash": "^4.14.120",
     "@types/mocha": "^2.2.48",
     "@types/mockery": "^1.4.29",
@@ -62,7 +65,10 @@
     "mocha-multi-reporters": "^1.1.7",
     "mockery": "^1.7.0",
     "puppeteer": "^1.13.0",
+<<<<<<< HEAD
     "request-promise-native": "^1.0.7",
+=======
+>>>>>>> Created some hit count breakpoint tests and the breakpoint testing
     "source-map-support": "^0.5.11",
     "tmp": "0.0.31",
     "ts-loader": "^1.0.0",

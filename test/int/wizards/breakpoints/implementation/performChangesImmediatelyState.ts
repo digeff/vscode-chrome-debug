@@ -1,6 +1,6 @@
 import { BreakpointWizard } from '../breakpointWizard';
 import { ValidatedMap } from '../../../core-v2/chrome/collections/validatedMap';
-import { IBreakpointsBatchingStrategy, InternalFileBreakpointsWizard, CurrentBreakpointsMapping, BreakpointsUpdate, BreakpointStatusChangedWithId } from './internalFileBreakpointsWizard';
+import { InternalFileBreakpointsWizard, CurrentBreakpointsMapping, BreakpointsUpdate, IBreakpointsBatchingStrategy, BreakpointStatusChangedWithId } from './internalFileBreakpointsWizard';
 import { BreakpointsAssertions } from './breakpointsAssertions';
 import { BreakpointsWizard } from '../breakpointsWizard';
 

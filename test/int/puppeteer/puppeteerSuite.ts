@@ -5,6 +5,7 @@
 
 import { createServer } from 'http-server';
 import * as puppeteer from 'puppeteer';
+import * as path from 'path';
 import * as testSetup from '../testSetup';
 import { launchTestAdapter } from '../intTestSupport';
 import { getPageByUrl, connectPuppeteer } from './puppeteerSupport';
@@ -12,6 +13,20 @@ import { FrameworkTestContext, TestProjectSpec, ReassignableFrameworkTestContext
 import { isThisV1 } from '../testSetup';
 import { HttpOrHttpsServer } from '../types/server';
 import { loadProjectLabels } from '../labels';
+import { wrapWithMethodLogger, MethodsCalledLogger, IMethodsCalledLoggerConfiguration, ReplacementInstruction, MethodsCalledLoggerConfiguration } from '../core-v2/chrome/logging/methodsCalledLogger';
+import { logger } from 'vscode-debugadapter';
+import { LogLevel } from 'vscode-debugadapter/lib/logger';
+import { HumanSlownessSimulator } from '../utils/humanSlownessSimulator';
+
+const useDateTimeInLog = false;
+function dateTimeForFilePath(): string {
+  return new Date().toISOString().replace(/:/g, '').replace('T', ' ').replace(/\.[0-9]+^/, '');
+}
+
+const logPath = path.resolve(process.cwd(), 'logs', `testRun${useDateTimeInLog ? `-${dateTimeForFilePath()}` : ''}.log`);
+
+logger.init(() => {}, logPath);
+logger.setup(LogLevel.Verbose, logPath);
 
 /**
  * Extends the normal debug adapter context to include context relevant to puppeteer tests.
@@ -29,6 +44,24 @@ export class PuppeteerTestContext extends ReassignableFrameworkTestContext {
   }
 }
 
+
+class PuppeteerMethodsCalledLoggerConfiguration implements IMethodsCalledLoggerConfiguration {
+  private readonly _wrapped = new MethodsCalledLoggerConfiguration([]);
+  public readonly replacements: ReplacementInstruction[] = [];
+
+  public decideWhetherToWrapMethodResult(methodName: string | symbol | number, args: any, _result: unknown, wrapWithName: (name: string) => void): void {
+    if (methodName === 'waitForSelector') {
+      wrapWithName(args[0]);
+    }
+  }
+
+  public decideWhetherToWrapEventEmitterListener(receiverName: string, methodName: string | symbol | number, args: unknown[], wrapWithName: (name: string) => void): void {
+    return this._wrapped.decideWhetherToWrapEventEmitterListener(receiverName, methodName, args, wrapWithName);
+  }
+}
+
+const humanSlownessSimulator = new HumanSlownessSimulator();
+
 /**
  * Launch a test with default settings and attach puppeteer. The test will start with the debug adapter
  * and chrome launched, and puppeteer attached.
@@ -40,13 +73,23 @@ export class PuppeteerTestContext extends ReassignableFrameworkTestContext {
 async function puppeteerTestFunction(
   description: string,
   context: FrameworkTestContext,
-  testFunction: (context: IPuppeteerTestContext, page: puppeteer.Page) => Promise<any>
+  testFunction: (context: PuppeteerTestContext, page: puppeteer.Page) => Promise<any>
 ) {
   return test(description, async function () {
-    const debugClient = await context.debugClient;
+    this.timeout(60000);
+
+    logger.log(`Starting test: ${description}`);
+    let debugClient = await context.debugClient;
     await launchTestAdapter(debugClient, context.testSpec.props.launchConfig);
-    const browser = await connectPuppeteer(9222);
-    const page = await getPageByUrl(browser, context.testSpec.props.url);
+    let browser = await connectPuppeteer(9222);
+
+
+
+    let page = await getPageByUrl(browser, context.testSpec.props.url);
+    if (process.env.MSFT_RUN_TESTS_SLOWLY === 'true') {
+      page = humanSlownessSimulator.wrap(page);
+    }
+    const wrappedPage = new MethodsCalledLogger(new PuppeteerMethodsCalledLoggerConfiguration(), page, 'PuppeterPage').wrapped();
 
     // This short wait appears to be necessary to completely avoid a race condition in V1 (tried several other
     // strategies to wait deterministically for all scripts to be loaded and parsed, but have been unsuccessful so far)
@@ -58,7 +101,8 @@ async function puppeteerTestFunction(
       await new Promise(a => setTimeout(a, 500));
     }
 
-    await testFunction( new PuppeteerTestContext(browser, page).reassignTo(context), page);
+    await testFunction( new PuppeteerTestContext(browser, wrappedPage).reassignTo(context), wrappedPage);
+    logger.log(`Ending test: ${description}`);
   });
 }
 
@@ -93,7 +137,10 @@ export function puppeteerSuite(
     let server: HttpOrHttpsServer | null;
 
     setup(async () => {
-      let debugClient = await testSetup.setup();
+      let debugClient = wrapWithMethodLogger(await testSetup.setup(), 'DebugAdapterClient');
+      if (process.env.MSFT_RUN_TESTS_SLOWLY === 'true') {
+        debugClient = humanSlownessSimulator.wrap(debugClient);
+      }
       suiteContext.reassignTo({
         testSpec,
         debugClient: debugClient,

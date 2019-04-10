@@ -1,3 +1,4 @@
+import * as _ from 'lodash';
 import { ExtendedDebugClient } from 'vscode-chrome-debug-core-testsupport';
 import { findPositionOfTextInFile } from '../../../utils/findPositionOfTextInFile';
 import { DebugProtocol } from 'vscode-debugprotocol';

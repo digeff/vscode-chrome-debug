@@ -67,6 +67,10 @@
             "name": "debug integration test",
             "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
             "env": {
+<<<<<<< HEAD
+=======
+                "MSFT_RUN_TESTS_SLOWLY": "false",
+>>>>>>> Created some hit count breakpoint tests and the breakpoint testing
                 "MSFT_TEST_DA_PORT": "4712",
             },
             "args": [
@@ -74,12 +78,17 @@
                 "-u", "tdd",
                 "--timeout", "999999",
                 "--colors",
+<<<<<<< HEAD
                 "--grep", "Common Framework Tests.*Should step out correctly",
+=======
+                "--grep", "Hit count breakpoint = 3 pauses on the button's 3rd click",
+>>>>>>> Created some hit count breakpoint tests and the breakpoint testing
                 "--reporter", "node_modules/vscode-chrome-debug-core-testsupport/out/loggingReporter.js",
                 "${workspaceFolder}/out/test/int/**/*.test.js",
             ],
             "skipFiles": [
                 "<node_internals>/**",
+<<<<<<< HEAD
                 "methodCalledLogger.ts",
                 "runnable.js",
                 "runner.js",
@@ -87,6 +96,9 @@
                 "hook.js",
                 "/suite.js",
                 "context.js",
+=======
+                "methodCalledLogger.ts"
+>>>>>>> Created some hit count breakpoint tests and the breakpoint testing
             ],
             "outFiles": [
                 "${workspaceFolder}/out/**/*.js"
