@@ -30,7 +30,7 @@ suite('Stepping', () => {
         await testSetup.teardown();
     });
 
-    suite.skip('skipFiles', () => {
+    suite('skipFiles', () => {
         test('when generated script is skipped via regex, the source can be un-skipped', async () => {
             const testProjectRoot = path.join(DATA_ROOT, 'calls-between-merged-files');
             const sourceA = path.join(testProjectRoot, 'sourceA.ts');
@@ -86,7 +86,7 @@ suite('Stepping', () => {
             await dc.assertStoppedLocation('step', { path: sourceB, line: 2 });
         });
 
-        test('skip statuses for sourcemapped files are persisted across page reload', async () => {
+        test.skip('skip statuses for sourcemapped files are persisted across page reload', async () => {
             const testProjectRoot = path.join(DATA_ROOT, 'calls-between-merged-files');
             const sourceA = path.join(testProjectRoot, 'sourceA.ts');
             const sourceB2 = path.join(testProjectRoot, 'sourceB2.ts');
