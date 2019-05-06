@@ -27,12 +27,24 @@
     "member-access": false,
     "member-ordering": [
       true,
-      "variables-before-functions"
+      {
+        "order": [
+            "static-field",
+            "static-field",
+            "instance-field",
+
+            "constructor",
+            "static-method",
+            "instance-method"
+         ]
+      }
     ],
+    "no-floating-promises": true,
     "no-any": false,
     "no-arg": true,
     "no-bitwise": true,
     "no-conditional-assignment": true,
+    "no-consecutive-blank-lines": true,
     "no-console": [
       true,
       "debug",
@@ -69,15 +81,12 @@
       "avoid-escape"
     ],
     "radix": true,
-    "semicolon": true,
-    "switch-default": true,
-    "trailing-comma": [
-      false,
-      {
-        "multiline": "always",
-        "singleline": "never"
-      }
+    "semicolon": [
+      true,
+      "always"
     ],
+    "switch-default": true,
+    "trailing-comma": false,
     "triple-equals": [
       true,
       "allow-null-check"
@@ -92,14 +101,18 @@
         "variable-declaration": "nospace"
       }
     ],
-    "variable-name": false,
+    "variable-name": [
+      true,
+      "allow-leading-underscore",
+      "ban-keywords"
+    ],
     "whitespace": [
       true,
       "check-branch",
       "check-decl",
+      "check-module",
       "check-operator",
       "check-separator",
-      "check-module",
       "check-type"
     ]
   }
