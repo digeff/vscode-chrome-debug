@@ -70,7 +70,7 @@ puppeteerSuite('Hit count breakpoints combinations', reactWithLoopTestSpecificat
                  * the value of this variable to validate that a bp with = 12 paused on the 12th iteration rather than on the 1st one
                  * (The breakpoint is located in the same place in both iterations, so we need to use state to differenciate between those two cases)
                  */
-                await setStateBreakpoint.assertIsHitThenResume({ variables: { 'iterationNumber': `${nextIterationToPause}` } });
+                await setStateBreakpoint.assertIsHitThenResume({ variables: { local: { iterationNumber: nextIterationToPause } } });
             }
 
             if (conditionConfiguration.noMorePausesAfterwards) {
