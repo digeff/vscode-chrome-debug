@@ -4,7 +4,8 @@
 
 import * as os from 'os';
 import * as path from 'path';
-import { ChromeDebugSession, logger, OnlyProvideCustomLauncherExtensibilityPoints, ISourcesRetriever, telemetry, UrlPathTransformer, TYPES, interfaces, GetComponentByID, DependencyInjection, UninitializedCDA, ISession } from 'vscode-chrome-debug-core';
+import { ChromeDebugSession, logger, OnlyProvideCustomLauncherExtensibilityPoints, ISourceTextRetriever, telemetry, UrlPathTransformer,
+    TYPES, interfaces, GetComponentByID, DependencyInjection, UninitializedCDA, ISession } from 'vscode-chrome-debug-core';
 import { ChromeDebugAdapter } from './chromeDebugAdapter';
 import { ChromeLauncher } from './launcherAndRuner/chromeLauncher';
 import { defaultTargetFilter } from './utils';
@@ -25,10 +26,11 @@ const logFilePath = path.resolve(os.tmpdir(), 'vscode-chrome-debug.txt');
 
 function customizeComponents<T>(identifier: interfaces.ServiceIdentifier<T>, component: T, getComponentById: GetComponentByID): T {
     switch (identifier) {
-        case TYPES.ISourcesRetriever:
-            // We use our own version of the ISourcesRetriever component which adds support for getting the source of .html files with potentially multiple inline scripts
-            return <T><unknown>new HTMLSourceRetriever(<ISourcesRetriever><unknown>component, getComponentById(CDTPResourceContentGetter));
-            case TYPES.UninitializedCDA:
+        case TYPES.ISourceTextRetriever:
+            logger.log(`DIEGO replaced TYPES.ISourceTextRetriever`);
+            // We use our own version of the ISourceTextRetriever component which adds support for getting the source of .html files with potentially multiple inline scripts
+            return <T><unknown>new HTMLSourceRetriever(<ISourceTextRetriever><unknown>component, getComponentById(CDTPResourceContentGetter));
+        case TYPES.UninitializedCDA:
             // We use our own version of the UninitializedCDA component to declare some extra capabilities that this client supports
             const session = <ISession>getComponentById(TYPES.ISession);
             return <T><unknown>new CustomizedUninitializedCDA(session, <UninitializedCDA><unknown>component);
