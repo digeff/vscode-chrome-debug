@@ -4,14 +4,14 @@
 
 import * as os from 'os';
 import * as path from 'path';
-import { ChromeDebugSession, logger, OnlyProvideCustomLauncherExtensibilityPoints, ISourceTextRetriever, telemetry, UrlPathTransformer,
-    TYPES, interfaces, GetComponentByID, DependencyInjection, UninitializedCDA, ISession } from 'vscode-chrome-debug-core';
+import { ChromeDebugSession, logger, OnlyProvideCustomLauncherExtensibilityPoints, telemetry, UrlPathTransformer, GetSourceTextRetrievability, IScriptSourcesRetriever,
+    TYPES, interfaces, GetComponentByID, DependencyInjection, UninitializedCDA, ISession, ILoadedSource } from 'vscode-chrome-debug-core';
 import { ChromeDebugAdapter } from './chromeDebugAdapter';
 import { ChromeLauncher } from './launcherAndRuner/chromeLauncher';
 import { defaultTargetFilter } from './utils';
 import { ChromeRunner } from './launcherAndRuner/chromeRunner';
 import { ArgumentsUpdater } from './argumentsUpdater';
-import { HTMLSourceRetriever } from './components/htmlSourceLogic';
+import { retrievabilityWithHTMLSupport } from './components/htmlSourceLogic';
 import { CDTPResourceContentGetter } from './cdtpComponents/cdtpResourceContentGetter';
 import { ShowOverlayWhenPaused, CDTPDeprecatedPage } from './features/showOverlayWhenPaused';
 import { CustomizedUninitializedCDA } from './components/customizedUninitializedCDA';
@@ -26,10 +26,13 @@ const logFilePath = path.resolve(os.tmpdir(), 'vscode-chrome-debug.txt');
 
 function customizeComponents<T>(identifier: interfaces.ServiceIdentifier<T>, component: T, getComponentById: GetComponentByID): T {
     switch (identifier) {
-        case TYPES.ISourceTextRetriever:
+        case TYPES.GetSourceTextRetrievability:
             logger.log(`DIEGO replaced TYPES.ISourceTextRetriever`);
+            const resourceContentGetter = <CDTPResourceContentGetter>getComponentById(CDTPResourceContentGetter);
+            const scriptSources = <IScriptSourcesRetriever>getComponentById(TYPES.IScriptSources);
+
             // We use our own version of the ISourceTextRetriever component which adds support for getting the source of .html files with potentially multiple inline scripts
-            return <T><unknown>new HTMLSourceRetriever(<ISourceTextRetriever><unknown>component, getComponentById(CDTPResourceContentGetter));
+            return <T><unknown>((loadedSource: ILoadedSource) => retrievabilityWithHTMLSupport(<GetSourceTextRetrievability><unknown>component, scriptSources, resourceContentGetter, loadedSource));
         case TYPES.UninitializedCDA:
             // We use our own version of the UninitializedCDA component to declare some extra capabilities that this client supports
             const session = <ISession>getComponentById(TYPES.ISession);
