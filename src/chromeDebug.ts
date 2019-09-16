@@ -55,13 +55,15 @@ extensibilityPoints.bindAdditionalComponents = (diContainer: DependencyInjection
 };
 extensibilityPoints.chromeConnection = ChromeProvidedPortConnection;
 
+export const ChromeDebugOptions = {
+    adapter: ChromeDebugAdapter,
+    extensionName: EXTENSION_NAME,
+    logFilePath: logFilePath,
+    extensibilityPoints: extensibilityPoints
+};
+
 ChromeDebugSession.run(ChromeDebugSession.getSession(
-    {
-        adapter: ChromeDebugAdapter,
-        extensionName: EXTENSION_NAME,
-        logFilePath: logFilePath,
-        extensibilityPoints: extensibilityPoints
-    }));
+    ChromeDebugOptions));
 
 /* tslint:disable:no-var-requires */
 const debugAdapterVersion = require('../../package.json').version;

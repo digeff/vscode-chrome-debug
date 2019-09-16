@@ -78,7 +78,7 @@
     "vscode-debugprotocol": "^1.32.0",
     "vscode-nls-dev": "^3.2.6"
   },
-  "main": "./out/src/extension",
+  "main": "./out/src/chromeDebug",
   "activationEvents": [
     "onDebugInitialConfigurations",
     "onDebugResolve:chrome",
