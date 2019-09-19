@@ -26,7 +26,7 @@
   "license": "SEE LICENSE IN LICENSE.txt",
   "dependencies": {
     "reflect-metadata": "^0.1.13",
-    "vscode-chrome-debug-core": "git+https://github.com/Microsoft/vscode-chrome-debug-core.git#v2",
+    "vscode-chrome-debug-core": "file:../vscode-chrome-debug-core",
     "vscode-debugadapter": "^1.36.1",
     "vscode-nls": "^4.1.1",
     "vscode-uri": "^1.0.6"
@@ -78,7 +78,7 @@
     "vscode-debugprotocol": "^1.32.0",
     "vscode-nls-dev": "^3.2.6"
   },
-  "main": "./out/src/chromeDebug",
+  "main": "./out/src/chromeDebugOptions",
   "activationEvents": [
     "onDebugInitialConfigurations",
     "onDebugResolve:chrome",
