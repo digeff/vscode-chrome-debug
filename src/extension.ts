@@ -8,6 +8,7 @@ import * as nls from 'vscode-nls';
 import * as path from 'path';
 
 import { defaultTargetFilter, getTargetFilter } from './utils';
+import { isEdgeDebuggingSupported, getEdgeBrowserPath } from './edgeUtils';
 
 const localize = nls.loadMessageBundle();
 
@@ -21,13 +22,21 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
 }
 
-const DEFAULT_CONFIG = {
+const COMMON_CONFIG = {
     type: 'chrome',
     request: 'launch',
     name: localize('chrome.launch.name', 'Launch Chrome against localhost'),
     url: 'http://localhost:8080',
     webRoot: '${workspaceFolder}'
 };
+
+function extraPropertiesForOSX(): object {
+    return Core.utils.getPlatform() === Core.utils.Platform.OSX
+        ? { version: 'stable' }
+        : {};
+}
+
+const DEFAULT_CONFIG = { ...COMMON_CONFIG, ...extraPropertiesForOSX() };
 
 export class ChromeConfigurationProvider implements vscode.DebugConfigurationProvider {
     provideDebugConfigurations(_folder: vscode.WorkspaceFolder | undefined, _token?: vscode.CancellationToken): vscode.ProviderResult<vscode.DebugConfiguration[]> {
@@ -37,7 +46,7 @@ export class ChromeConfigurationProvider implements vscode.DebugConfigurationPro
     /**
      * Try to add all missing attributes to the debug configuration being launched.
      */
-    async resolveDebugConfiguration(folder: vscode.WorkspaceFolder | undefined, config: vscode.DebugConfiguration, _token?: vscode.CancellationToken): Promise<vscode.DebugConfiguration | null> {
+    async resolveDebugConfiguration(folder: vscode.WorkspaceFolder | undefined, config: vscode.DebugConfiguration, _token?: vscode.CancellationToken): Promise<vscode.DebugConfiguration | null | undefined> {
         // if launch.json is missing or empty
         if (!config.type && !config.request && !config.name) {
             // Return null so it will create a launch.json and fall back on provideDebugConfigurations - better to point the user towards the config
@@ -45,6 +54,26 @@ export class ChromeConfigurationProvider implements vscode.DebugConfigurationPro
             return null;
         }
 
+        if (config.type === 'edge') {
+            if (isEdgeDebuggingSupported()) {
+                if (msedgeIsOnMachine() || config['version'] || config['runtimeExecutable']) {
+                    config.type = 'msedge';
+                } else {
+                    const errorMessage = localize('edge.debug.error.versionNotSupported', 'Your version of Microsoft Edge does not support debugging via the Edge DevTools Protocol. You can read more about supported versions here (https://aka.ms/edp-docs).');
+                    // since we're not passing any user options, we want to return an undefined debug configuration
+                    return <Thenable<undefined>>vscode.window.showErrorMessage(errorMessage);
+                }
+            }
+        }
+
+        const newConfig = await this.resolveSelectedTargetForAttach(config);
+
+        resolveRemoteUris(folder, newConfig);
+
+        return newConfig;
+    }
+
+    async resolveSelectedTargetForAttach(config: vscode.DebugConfiguration, _token?: vscode.CancellationToken): Promise<vscode.DebugConfiguration | null> {
         if (config.request === 'attach') {
             const discovery = new Core.chromeTargetDiscoveryStrategy.ChromeTargetDiscovery(
                 new Core.NullLogger(), new Core.telemetry.NullTelemetryReporter());
@@ -63,11 +92,9 @@ export class ChromeConfigurationProvider implements vscode.DebugConfigurationPro
                     return null;
                 }
 
-                config.websocketUrl = selectedTarget.websocketDebuggerUrl;
+                return { ...config, websocketUrl: selectedTarget.websocketDebuggerUrl };
             }
         }
-
-        resolveRemoteUris(folder, config);
 
         return config;
     }
@@ -108,7 +135,7 @@ function rewriteWorkspaceRoot(configObject: any, internalWorkspaceRootPath: stri
     }
 }
 
-function resolveRemoteUris(folder: vscode.WorkspaceFolder | undefined, config: vscode.DebugConfiguration): void {
+function resolveRemoteUris(folder: vscode.WorkspaceFolder | undefined, config: vscode.DebugConfiguration | null): void {
     if (folder && folder.uri.scheme === remoteUriScheme) {
         const internalPath = mapRemoteClientUriToInternalPath(folder.uri);
         rewriteWorkspaceRoot(config, internalPath);
@@ -157,4 +184,11 @@ function unescapeTargetTitle(title: string): string {
         .replace(/&gt;/g, '>')
         .replace(/&#39;/g, `'`)
         .replace(/&quot;/g, '"');
+}
+
+function msedgeIsOnMachine(): boolean {
+    if (getEdgeBrowserPath('stable') != null) {
+        return true;
+    }
+    return false;
 }
